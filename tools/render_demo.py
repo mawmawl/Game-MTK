@@ -55,8 +55,12 @@ SHOTS = {
         (46, ""),
     ],
     "title": [
-        (6, "Scenes.go('title')"),
-        (126, ""),
+        # kartu judul berdiri di atas gameplay yang diredam gelap — bukan di atas
+        # menu game, supaya tidak ada dua lapisan tulisan bertumpuk
+        (6, "window.resetStage(1)"),
+        (24, "const L=window.game.level; const o=L.objects.find(o=>o.type==='window')||L.objects[0]; window.game.tp(o.x, o.y+2);"),
+        (30, "window.setKey('d', true)"),
+        (72, "window.setKey('d', false)"),
     ],
     "search": [
         (6, "window.resetStage(0)"),
@@ -164,31 +168,25 @@ SEGMENTS = [
 
     dict(name="s1", shot="search", kind="shot", accent="#ffe9a8",
          num="01", head="TEMUKAN BUKTI",
-         sub="Pesan rahasia dan catatan fungsi disembunyikan di dalam ruangan",
-         panel=dict(head="CATATAN FUNGSI", t=3.4, until=6.4, cps=0.05,
-                    lines=["f(x) = a·x + b", "a = 1    b = 25"]), music="bedroom",
+         sub="Cari PESAN RAHASIA dan CATATAN FUNGSI — periksa objek dengan E", music="bedroom",
          cues=[(0.2, "paper"), (0.8, "whoosh"), (1.4, "tick"), (3.5, "type"), (4.4, "sparkle"),
                (5.6, "paper"), (7.4, "whoosh")]),
 
     dict(name="s2", shot="machine", kind="shot", accent="#7ae68a",
          num="02", head="MESIN ENKRIPSI",
-         sub="Masukkan a dan b — sandi dihitung otomatis, kamu tidak perlu berhitung manual",
-         panel=dict(head="HASIL SANDI (mod 53)", t=3.0, until=6.2, cps=0.045, ink=True,
-                    lines=["y = a·x + b", "KXQZABXQUMAA"]), music="lab",
+         sub="Sandi dihitung mesin: y = a·x + b (mod 53)", music="lab",
          cues=[(0.2, "whoosh"), (0.9, "machine"), (2.6, "chime"), (3.1, "type"), (5.2, "sparkle"),
                (6.0, "paper"), (6.9, "whoosh"), (8.0, "tick")]),
 
     dict(name="s3", shot="courier", kind="shot", accent="#e8a44a",
          num="03", head="ANTAR KE KURIR",
-         sub="Harus persis sama — huruf besar dan kecil punya arti berbeda",
-         music="school",
+         sub="Ketik sandinya persis — huruf besar dan kecil berbeda", music="school",
          cues=[(0.2, "whoosh"), (0.8, "paper"), (2.0, "tick"), (3.2, "type"), (5.0, "door"),
                (5.3, "fanfare"), (6.4, "whoosh")]),
 
     dict(name="s4", shot="stealth", kind="shot", accent="#ff8a7a",
          num="04", head="HINDARI MATA-MATA",
-         sub="Kerucut pandang bisa dihindari di balik perabot — tertangkap berarti ulang dari awal",
-         music="lab",
+         sub="Kerucut pandang bisa dihindari di balik perabot", music="lab",
          cues=[(0.4, "whoosh"), (2.2, "alert"), (3.0, "alert", {"v": .7}), (4.6, "whoosh"),
                (8.0, "impact", {"v": .7}), (9.4, "whoosh")]),
 
@@ -201,8 +199,8 @@ SEGMENTS = [
 
     dict(name="end", shot="end", kind="endcard", music="title",
          bullets=["3 LEVEL — KAMAR, SEKOLAH, LAB RUSAK",
-                  "PESAN, FUNGSI, DAN LOKASI SELALU BERUBAH",
-                  "100% OFFLINE • VANILLA JS • DESKTOP + LAYAR SENTUH"],
+                  "PESAN, FUNGSI, LOKASI SELALU BERUBAH",
+                  "100% OFFLINE • TANPA ASET LUAR"],
          cta="COBA SEKARANG", url="github.com/mawmawl/Game-MTK",
          cues=[(0.2, "whoosh"), (0.5, "riser"), (1.2, "fanfare"), (2.6, "chime"),
                (3.4, "sparkle"), (4.6, "sparkle"), (6.4, "chime"), (8.4, "whoosh")]),
@@ -297,7 +295,7 @@ SHOT_ASSERT = {
     "courier": "(() => { const L=window.game.level; return { terkirim: L.delivered, kurirBerangkat: !!L.courierLeaving }; })()",
     "stealth": "(() => { const L=window.game.level; return { tertangkap: L.catches > 0 }; })()",
     "results": "(() => { const d = Scenes.data; return { bintang: d.playedStars === 3 }; })()",
-    "title": "(() => ({ judul: Scenes.cur === 'title' }))()",
+    "title": "(() => { const L = window.game.level; return { level: !!(L && L.objects.length > 0) }; })()",
     "end": "(() => { const L = window.game.level; return { level: !!(L && L.objects.length > 0) }; })()",
 }
 
@@ -369,12 +367,83 @@ def open_overlay(cdp, tl):
     print("  halaman overlay siap; timeline terpasang")
 
 
+def overlay_metrics(cdp, tl, samples=10, skip=1.0):
+    """Ukur kepadatan (tutupan area gambar) & lebar teks tanpa merender video.
+
+    `skip` melewati detik-detik awal babak (masa tirai piksel) — tirai memang
+    menutup layar sebentar, jadi bukan bagian dari "penuh/tidaknya" tata letak.
+    Yang diukur hanya piksel PEKAT (alpha > 140): teks yang benar-benar menutupi
+    gambar, bukan lapisan peredup tipis."""
+    cover = {}
+    for s in tl["segments"]:
+        for k in range(samples):
+            local = skip + (s["dur"] - skip) * (k + 0.5) / samples
+            t = s["t0"] + local
+            cdp.js_checked(f"window.Overlay.frame({t})")
+            c = cdp.js("window.coverStats()")
+            c = json.loads(c) if isinstance(c, str) else c
+            if not isinstance(c, dict):
+                continue
+            prev = cover.get(s["name"])
+            if prev is None or c["frac"] > prev["frac"]:
+                cover[s["name"]] = c
+    fit = cdp.js("window.textFit()")
+    fit = json.loads(fit) if isinstance(fit, str) else fit
+    return cover, fit
+
+
+def report_metrics(cover, fit, tl=None):
+    """Periksa tata letak:
+    (1) babak gameplay hampir tidak tertutup overlay,
+    (2) kartu (hook/judul/end) justru HARUS menutup latar agar terbaca,
+    (3) semua teks masuk lebar bar,
+    (4) satu-satunya elemen pekat di area gambar adalah penanda objek."""
+    kartu = {"title", "end", "hook"}
+    min_kartu = {"hook": 0.5}                 # hook wajib meredam latar, bukan teks melayang
+    bad = []
+    segs = {s["name"]: s for s in (tl["segments"] if tl else [])}
+    for name, c in cover.items():
+        lim = 1.0 if name in kartu else 0.12
+        ok = c["frac"] <= lim
+        print(f"  tutupan overlay {name:9s} {c['frac'] * 100:5.1f}%  (maks {lim * 100:.0f}%)  {'OK' if ok else 'TERLALU PADAT'}")
+        if not ok:
+            bad.append(f"{name} {c['frac'] * 100:.1f}%")
+        need = min_kartu.get(name)
+        if need is not None and c["frac"] < need:
+            print(f"    -> kartu {name} hanya menutup {c['frac'] * 100:.1f}% (min {need * 100:.0f}%): teks melayang di atas gameplay")
+            bad.append(f"{name}: latar tidak diredam")
+        if name in kartu or c["n"] == 0:
+            continue
+        m = (segs.get(name) or {}).get("marker")
+        if not m:
+            print(f"    -> ada {c['n']} px pekat di area gambar padahal tanpa penanda")
+            bad.append(f"{name}: elemen menimpa gameplay")
+        else:
+            mx, my = m["x"] * 2, m["y"] * 2
+            inside = (mx - 80 <= c["minx"] and c["maxx"] <= mx + 80 and my - 90 <= c["miny"] and c["maxy"] <= my + 90)
+            print(f"    -> {c['n']} px pekat di sekitar penanda ({mx:.0f},{my:.0f})  {'OK' if inside else 'DI LUAR PENANDA'}")
+            if not inside:
+                bad.append(f"{name}: elemen pekat di luar penanda")
+    for k, (w, avail) in sorted(fit.items()):
+        flag = "OK" if w <= avail else "KEPANJANGAN"
+        print(f"  lebar teks {k:16s} {w:5d} / {avail} px  {flag}")
+        if w > avail:
+            bad.append(f"teks {k} {w}>{avail}px")
+    return bad
+
+
 def stage_overlay(cdp, tl, work):
+    # ukur dulu tata letaknya; kalau terlalu padat, tidak perlu render
+    print("  ukur kepadatan overlay…")
+    cover, fit = overlay_metrics(cdp, tl)
+    bad = report_metrics(cover, fit, tl)
+    if bad:
+        raise RuntimeError("overlay terlalu padat/teks kepanjangan: " + "; ".join(bad))
     ov = os.path.join(work, "overlay")
     os.makedirs(ov, exist_ok=True)
     total = int(round(tl["dur"] * FPS))
     for i in range(total):
-        cdp.js(f"window.Overlay.frame({i / FPS})")
+        cdp.js_checked(f"window.Overlay.frame({i / FPS})")
         res = cdp.call("Page.captureScreenshot", format="png",
                        clip={"x": 0, "y": 0, "width": OW, "height": OH, "scale": 1},
                        captureBeyondViewport=False)
@@ -564,6 +633,8 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="cetak timeline lalu keluar")
     ap.add_argument("--overlay-preview", default="",
                     help="render beberapa still overlay (mis. 2.0,6.0,30.0) lalu keluar")
+    ap.add_argument("--overlay-check", action="store_true",
+                    help="ukur kepadatan overlay & lebar teks saja (cepat, tanpa render)")
     ap.add_argument("--keep", action="store_true", help="jangan hapus direktori kerja (di /tmp)")
     ap.add_argument("--check", action="store_true", help="sama dengan --stage check")
     args = ap.parse_args()
@@ -644,21 +715,28 @@ def main():
             shutil.rmtree(work, ignore_errors=True)
             return rc
 
-        if args.stage in ("all", "gameplay"):
+        if args.stage in ("all", "gameplay") and not args.overlay_check:
             print("== 1. rekam gameplay")
             tf = stage_gameplay(cdp, work, markers)
             tl = build_timeline(markers)          # marker dari state game setelah direkam
             if tf != sum(shot_frames(s["shot"]) for s in SEGMENTS):
                 print(f"  PERINGATAN: jumlah frame gameplay ({tf}) beda dari skenario")
 
-        need_overlay = args.stage in ("all", "overlay", "audio", "compose")
+        need_overlay = args.stage in ("all", "overlay", "audio", "compose") or args.overlay_check
         if need_overlay:
             open_overlay(cdp, tl)
             with open(tl_file, "w") as fh:
                 json.dump(tl, fh, indent=1)
-        if args.stage in ("all", "overlay"):
+        if args.stage in ("all", "overlay") and not args.overlay_check:
             print("== 2. render overlay motion-graphic")
             stage_overlay(cdp, tl, work)
+        if args.overlay_check:
+            print("== ukur kepadatan overlay (tanpa render)")
+            cover, fit = overlay_metrics(cdp, tl)
+            bad = report_metrics(cover, fit, tl)
+            print("  HASIL:", "OK" if not bad else "GAGAL -> " + "; ".join(bad))
+            return 0 if not bad else 1
+
         if need_overlay and not os.path.exists(os.path.join(work, "gameplay", "g00000.png")):
             raise RuntimeError("frame gameplay belum ada — jalankan tahap gameplay dulu")
         wav = os.path.join(work, "demo.wav")

@@ -13,67 +13,57 @@
 </head>
 <body>
 <!-- Lapisan motion-graphic trailer: transparan, murni fungsi waktu (Overlay.frame(t)).
-     Ditempel di atas rekaman gameplay oleh ffmpeg. -->
+     Ditempel di atas rekaman gameplay oleh ffmpeg.
+
+     PRINSIP DESAIN (versi tenang, bukan penuh tempelan):
+     - gameplay adalah bintangnya: area gambar (74..646) dibiarkan hampir bersih
+     - semua teks tinggal DI DALAM bar letterbox atas & bawah, bukan menimpa gambar
+     - satu pesan per baris, tidak ada kotak/panel bertumpuk
+     - aksen emas tipis sebagai pemersatu -->
 <canvas id="ov" width="1280" height="720"></canvas>
 <canvas id="game" width="1" height="1" style="display:none"></canvas>
 <canvas id="ui" width="1" height="1" style="display:none"></canvas>
 <script src="../js/engine.js"></script>
 <script>
 'use strict';
-/* ============================================================
-   OVERLAY TRAILER — semua gambar = fungsi waktu t (detik).
-   Diukur di kanvas 1280x720 (2x kanvas game 640x360), teks tajam.
-   Data timeline datang dari Python (window.setTimeline).
-   ============================================================ */
 const g = document.getElementById('ov').getContext('2d');
 const OW = 1280, OH = 720;
+const BAR = 74;                       // tinggi bar letterbox atas & bawah
+const SAFE_IN = 64;                   // margin teks di dalam bar
 let TL = null;
 window.setTimeline = tl => { TL = tl; };
 
 const PS = s => s + 'px "Press Start 2P", monospace';
 const VT = s => s + 'px "VT323", monospace';
-const GOLD = '#e8c04a', GOLD_HI = '#fff2cc', IVORY = '#f4ead0', DARK = '#0c0a18', RED = '#c8503e';
+const GOLD = '#e8c04a', GOLD_HI = '#fff2cc', IVORY = '#f2ecdf', MUTED = 'rgba(206,200,232,0.82)', RED = '#c8503e';
 
 function rect(x, y, w, h, c) { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
-function frame(x, y, w, h, c, t = 2) { rect(x, y, w, t, c); rect(x, y + h - t, w, t, c); rect(x, y, t, h, c); rect(x + w - t, y, t, h, c); }
-function dia(cx, cy, r, c) {
-  g.fillStyle = c; g.beginPath();
-  g.moveTo(cx, cy - r); g.lineTo(cx + r, cy); g.lineTo(cx, cy + r); g.lineTo(cx - r, cy);
-  g.closePath(); g.fill();
-}
 function txt(str, x, y, o = {}) {
-  const { font = VT(34), color = IVORY, align = 'left', alpha = 1, baseline = 'alphabetic', shadow = null } = o;
+  const { font = VT(30), color = IVORY, align = 'left', alpha = 1, baseline = 'middle' } = o;
   g.save(); g.globalAlpha = alpha; g.font = font; g.textAlign = align; g.textBaseline = baseline;
-  if (shadow) { g.fillStyle = shadow; g.fillText(str, x + 2, y + 3); }
   g.fillStyle = color; g.fillText(str, x, y); g.restore();
 }
 const fade = (t, a, b) => Math.max(0, Math.min(1, (t - a) / (b - a)));
 const ease = easeOutCubic;
 const easeBack = easeOutBack;
+const segAt = (t) => TL ? TL.segments.find(s => t >= s.t0 && t <= s.t0 + s.dur) : null;
+const localOf = (s, t) => t - s.t0;
 
-/* ---------- elemen global: bar letterbox, garis rambut, progres ---------- */
-function letterbox(t, dur) {
-  const p = ease(Math.min(1, t / 0.6)) * (1 - fade(t, dur - 0.6, dur));
+/* ---------- bar letterbox + garis emas + progres tipis ---------- */
+function bars(t, dur) {
+  const p = ease(Math.min(1, t / 0.5)) * (1 - fade(t, dur - 0.5, dur));
   if (p <= 0.01) return;
-  const h = Math.round(46 * p);
-  rect(0, 0, OW, h, 'rgba(6,5,14,0.92)');
-  rect(0, OH - h, OW, h, 'rgba(6,5,14,0.92)');
-  rect(0, h, OW, 2, 'rgba(232,192,74,0.35)');
-  rect(0, OH - h - 2, OW, 2, 'rgba(232,192,74,0.35)');
-  // tanda sudut
-  const m = 22, L = 30;
-  g.strokeStyle = 'rgba(232,192,74,0.45)'; g.lineWidth = 3;
-  for (const [x, y, sx, sy] of [[m, h + m, 1, 1], [OW - m, h + m, -1, 1], [m, OH - h - m, 1, -1], [OW - m, OH - h - m, -1, -1]]) {
-    g.beginPath(); g.moveTo(x + sx * L, y); g.lineTo(x, y); g.lineTo(x, y + sy * L); g.stroke();
-  }
+  const h = Math.round(BAR * p);
+  rect(0, 0, OW, h, 'rgba(7,6,16,0.95)');
+  rect(0, OH - h, OW, h, 'rgba(7,6,16,0.95)');
+  rect(0, h - 1, OW, 1, 'rgba(232,192,74,0.30)');
+  rect(0, OH - h, OW, 1, 'rgba(232,192,74,0.30)');
+  // progres: garis emas tipis di dalam bar bawah
+  const pr = Math.min(1, t / dur);
+  rect(SAFE_IN, OH - 12, OW - SAFE_IN * 2, 1, 'rgba(255,255,255,0.10)');
+  rect(SAFE_IN, OH - 12, (OW - SAFE_IN * 2) * pr, 1, 'rgba(232,192,74,0.75)');
 }
-function progress(t, dur) {
-  const w = OW - 160;
-  rect(80, OH - 18, w, 4, 'rgba(255,255,255,0.12)');
-  rect(80, OH - 18, w * Math.min(1, t / dur), 4, 'rgba(232,192,74,0.75)');
-  dia(80 + w * Math.min(1, t / dur), OH - 16, 6, GOLD_HI);
-}
-/* tirai piksel di tiap peralihan babak (menyembunyikan cut) */
+/* tirai piksel di peralihan babak */
 function wipes(t) {
   if (!TL) return;
   for (const b of TL.boundaries) {
@@ -86,51 +76,69 @@ function wipes(t) {
       const h = Math.round(q * OH);
       if (h <= 0) continue;
       rect(i * CW, OH - h, CW, h, 'rgba(8,6,20,0.97)');
-      rect(i * CW, OH - h, CW, 4, '#0e0b20');
-      rect(i * CW, OH - h, CW - 4, 2, `rgba(232,192,74,${(0.85 * q).toFixed(2)})`);
+      rect(i * CW, OH - h, CW - 4, 2, `rgba(232,192,74,${(0.8 * q).toFixed(2)})`);
     }
   }
 }
 
-/* ---------- HOOK ---------- */
-function hook(s, t) {
-  const p = fade(t, 0.05, 0.35);
-  if (p <= 0) return;
-  // kedip merah + garis glitch
-  const glitch = Math.max(0, 1 - (t - s.t0) / 0.7);
-  if (glitch > 0) {
-    rect(0, 0, OW, OH, `rgba(200,80,62,${0.20 * glitch})`);
-    for (let i = 0; i < 7; i++) {
-      const y = hash2(i, Math.floor(t * 30)) * OH;
-      rect(0, y, OW, 2 + hash2(i, 9) * 5, `rgba(255,255,255,${0.05 + 0.07 * hash2(i, 4)})`);
-    }
-  }
-  const gv = g.createRadialGradient(OW / 2, OH / 2, OH * 0.22, OW / 2, OH / 2, OH * 0.92);
-  gv.addColorStop(0, 'rgba(0,0,0,0)');
-  gv.addColorStop(1, `rgba(120,20,16,${0.5 * p})`);
-  g.fillStyle = gv; g.fillRect(0, 0, OW, OH);
+/* ---------- isi bar: label babak (bawah) + satu baris keterangan (atas) ---------- */
+function chapter(s, t, local) {
+  const din = ease(fade(local, 0.15, 0.5));
+  const dout = 1 - fade(local, s.dur - 0.35, s.dur - 0.05);
+  const a = Math.min(din, dout);
+  if (a <= 0) return;
+  // bar bawah: "01  TEMUKAN BUKTI" (rata kiri, rapat)
+  txt(s.num || '', SAFE_IN, OH - 42, { font: PS(15), color: s.accent || GOLD, alpha: a });
+  txt(s.head || '', SAFE_IN + 58, OH - 42, { font: PS(15), color: IVORY, alpha: a });
+  // bar atas: satu baris keterangan
+  const ca = a * fade(local, 0.35, 0.75);
+  if (ca > 0 && s.sub) txt(s.sub, SAFE_IN, BAR / 2 + 1, { font: VT(31), color: MUTED, alpha: ca });
+}
 
+/* ---------- penanda objek: satu cincin tipis + label kecil ---------- */
+function marker(m, t, local) {
+  if (!m) return;
+  const a = Math.min(fade(local, m.t || 1, (m.t || 1) + 0.4), 1 - fade(local, m.until || 4, (m.until || 4) + 0.35));
+  if (a <= 0) return;
+  const x = m.x * 2, y = m.y * 2;
+  const pulse = 1 + 0.07 * Math.sin(t * 5);
+  g.save();
+  g.globalAlpha = a * 0.95;
+  g.strokeStyle = m.c || GOLD;
+  g.lineWidth = 2;
+  g.beginPath(); g.arc(x, y, 26 * pulse, 0, Math.PI * 2); g.stroke();
+  g.restore();
+  txt(m.label || '', x, y - 40, { font: PS(11), color: m.c || GOLD, align: 'center', alpha: a });
+}
+
+/* ---------- HOOK: dua baris, bersih tanpa garis glitch ---------- */
+function hook(s, t) {
+  const p = fade(t, s.t0 + 0.05, s.t0 + 0.35);
+  if (p <= 0) return;
+  // latar diredam dulu (poster, bukan tulisan menempel di atas gameplay),
+  // lalu semburat merah di tepi
+  const dim = 0.62 * p;
+  g.fillStyle = `rgba(10,3,6,${dim.toFixed(3)})`;
+  g.fillRect(0, 0, OW, OH);
+  const gv = g.createRadialGradient(OW / 2, OH / 2, OH * 0.30, OW / 2, OH / 2, OH * 0.95);
+  gv.addColorStop(0, 'rgba(0,0,0,0)');
+  gv.addColorStop(1, `rgba(150,26,20,${0.5 * p})`);
+  g.fillStyle = gv; g.fillRect(0, 0, OW, OH);
   (s.lines || []).forEach((ln, i) => {
-    const lp = Math.max(0, Math.min(1, (t - s.t0 - 0.2 - i * 0.45) / 0.22));
+    const lp = Math.max(0, Math.min(1, (t - s.t0 - 0.15 - i * 0.5) / 0.25));
     if (lp <= 0) return;
     const e = easeBack(lp);
-    const y = OH / 2 - 40 + i * 92;
-    const sc = 0.9 + 0.1 * e;
-    const size = 48;
+    const y = OH / 2 - 26 + i * 86;
     g.save();
     g.translate(OW / 2, y);
-    g.scale(sc, sc);
-    const shake = (1 - lp) * 10 * Math.sin(t * 60);
-    txt(ln, shake, 0, { font: PS(size), color: i ? GOLD_HI : IVORY, align: 'center', alpha: lp, shadow: 'rgba(0,0,0,0.85)' });
+    g.scale(0.94 + 0.06 * e, 0.94 + 0.06 * e);
+    txt(ln, 0, 0, { font: PS(46), color: i ? GOLD_HI : IVORY, align: 'center', alpha: lp });
     g.restore();
-    if (i === 0) {
-      const w = 300 * e;
-      rect(OW / 2 - w / 2, y + 22, w, 4, RED);
-    }
+    if (i === 0) rect(OW / 2 - 150 * e, y + 26, 300 * e, 3, RED);
   });
 }
 
-/* ---------- LOGO / JUDUL ---------- */
+/* ---------- LOGO (dipakai kartu judul & end card) ---------- */
 function logo(t, x, y, size, alpha) {
   const text = 'SECRET MAIL', sp = size * 0.16;
   g.save(); g.font = PS(size); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
@@ -138,10 +146,10 @@ function logo(t, x, y, size, alpha) {
   for (const ch of text) { const w = g.measureText(ch).width; adv.push(w); total += w + sp; }
   total -= sp;
   let cx = Math.round(x - total / 2);
-  const bloom = g.createRadialGradient(x, y - size * 0.4, 10, x, y - size * 0.4, 460);
-  bloom.addColorStop(0, `rgba(232,192,74,${0.16 * alpha})`);
+  const bloom = g.createRadialGradient(x, y - size * 0.4, 10, x, y - size * 0.4, 420);
+  bloom.addColorStop(0, `rgba(232,192,74,${0.14 * alpha})`);
   bloom.addColorStop(1, 'rgba(232,192,74,0)');
-  g.fillStyle = bloom; g.fillRect(x - 480, y - 250, 960, 380);
+  g.fillStyle = bloom; g.fillRect(x - 440, y - 230, 880, 350);
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     if (ch !== ' ') {
@@ -149,164 +157,74 @@ function logo(t, x, y, size, alpha) {
       metal.addColorStop(0, GOLD_HI); metal.addColorStop(0.35, '#ffe9a8');
       metal.addColorStop(0.62, GOLD); metal.addColorStop(1, '#96701a');
       g.globalAlpha = alpha;
-      g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillText(ch, cx + 2, y + 3);
+      g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillText(ch, cx + 2, y + 3);
       g.fillStyle = metal; g.fillText(ch, cx, y);
-      g.globalAlpha = alpha * 0.18; g.fillStyle = '#fffdf2'; g.fillText(ch, cx, y - 2);
+      g.globalAlpha = alpha * 0.16; g.fillStyle = '#fffdf2'; g.fillText(ch, cx, y - 2);
       g.globalAlpha = 1;
     }
     cx += adv[i] + sp;
   }
   g.restore();
 }
-function title(s, t) {
-  const p = fade(t, s.t0 + 0.1, s.t0 + 1.0);
-  const out = 1 - fade(t, s.t0 + s.dur - 0.4, s.t0 + s.dur);
-  const a = Math.min(p, out);
+
+function titleCard(s, t) {
+  const a = Math.min(fade(t, s.t0 + 0.1, s.t0 + 0.9), 1 - fade(t, s.t0 + s.dur - 0.35, s.t0 + s.dur));
   if (a <= 0) return;
-  const y = OH / 2 - 10;
-  logo(t, OW / 2, y, 54, a);
-  // garis emas membuka + wajik
-  const rp = ease(fade(t, s.t0 + 0.6, s.t0 + 1.2));
-  const half = 320 * rp;
-  rect(OW / 2 - half, y + 26, half, 3, `rgba(232,192,74,${0.55 * a})`);
-  rect(OW / 2, y + 26, half, 3, `rgba(232,192,74,${0.55 * a})`);
-  dia(OW / 2, y + 27.5, 9, GOLD_HI);
-  txt('PETUALANGAN ENKRIPSI RAHASIA', OW / 2, y + 68, { font: VT(38), color: 'rgba(232,226,214,0.8)', align: 'center', alpha: a });
-  txt('MATEMATIKA • SANDSI • MATA-MATA', OW / 2, y + 112, { font: PS(15), color: 'rgba(180,172,214,0.75)', align: 'center', alpha: ease(fade(t, s.t0 + 1.3, s.t0 + 1.9)) * a });
+  // gameplay diredam gelap dulu, supaya tulisan judul tidak bertabrakan dengan
+  // HUD/objek di belakangnya
+  const gr = g.createLinearGradient(0, 0, 0, OH);
+  gr.addColorStop(0, `rgba(8,7,20,${0.88 * a})`);
+  gr.addColorStop(1, `rgba(18,13,38,${0.92 * a})`);
+  g.fillStyle = gr; g.fillRect(0, 0, OW, OH);
+  const y = OH / 2 - 4;
+  logo(t, OW / 2, y, 52, a);
+  const rp = ease(fade(t, s.t0 + 0.55, s.t0 + 1.15));
+  rect(OW / 2 - 250 * rp, y + 26, 500 * rp, 2, `rgba(232,192,74,${0.5 * a})`);
+  txt('PETUALANGAN ENKRIPSI RAHASIA', OW / 2, y + 62, { font: VT(34), color: MUTED, align: 'center', alpha: a });
 }
 
-/* ---------- CALLOUT (lower-third + penanda + panel) ---------- */
-function lowerThird(s, t, local) {
-  const enter = ease(fade(local, 0.15, 0.55));
-  const exit = 1 - fade(local, s.dur - 0.45, s.dur - 0.1);
-  const a = Math.min(enter, exit);
-  if (a <= 0) return;
-  const x = 80 - (1 - enter) * 120;
-  const y = OH - 232;
-  const w = 640;
-  rect(x, y, w, 108, 'rgba(10,8,22,0.82)');
-  rect(x, y, 6, 108, s.accent || GOLD);
-  rect(x + 6, y, w - 6, 2, 'rgba(255,255,255,0.10)');
-  frame(x, y, w, 108, 'rgba(232,192,74,0.35)');
-  txt(s.num || '', x + 26, y + 44, { font: PS(20), color: s.accent || GOLD, alpha: a, shadow: 'rgba(0,0,0,0.8)' });
-  txt(s.head || '', x + 26, y + 82, { font: PS(17), color: IVORY, alpha: a, shadow: 'rgba(0,0,0,0.85)' });
-  // garis isi bergerak
-  const lw = (w - 60) * ease(fade(local, 0.35, 0.9));
-  rect(x + 26, y + 92, lw, 2, `rgba(232,192,74,${0.5 * a})`);
-  if (s.sub) txt(s.sub, x, y + 150, { font: VT(36), color: 'rgba(226,220,244,0.92)', alpha: a * fade(local, 0.5, 0.9), shadow: 'rgba(0,0,0,0.85)' });
-}
-
-function marker(m, t, local) {
-  if (!m) return;
-  const p = fade(local, m.t || 0.6, (m.t || 0.6) + 0.5);
-  const keep = 1 - fade(local, (m.until || 2.6), (m.until || 2.6) + 0.4);
-  const a = Math.min(p, keep);
-  if (a <= 0) return;
-  const x = m.x * 2, y = m.y * 2;
-  const pulse = 1 + 0.12 * Math.sin(t * 6);
-  g.save(); g.globalAlpha = a;
-  g.strokeStyle = m.c || GOLD; g.lineWidth = 3;
-  g.beginPath(); g.arc(x, y, 34 * pulse, 0, Math.PI * 2); g.stroke();
-  g.globalAlpha = a * 0.35;
-  g.beginPath(); g.arc(x, y, 48 * pulse, 0, Math.PI * 2); g.stroke();
-  g.restore();
-  const lx = m.lx === undefined ? x : m.lx * 2, ly = m.ly === undefined ? y + 78 : m.ly * 2;
-  g.save(); g.globalAlpha = a;
-  g.strokeStyle = m.c || GOLD; g.lineWidth = 2;
-  g.beginPath(); g.moveTo(x, y + 34 * pulse); g.lineTo(lx, ly - 16); g.stroke();
-  g.restore();
-  txt(m.label || '', lx, ly, { font: PS(14), color: m.c || GOLD, align: 'center', alpha: a, shadow: 'rgba(0,0,0,0.9)' });
-}
-
-function panel(s, t, local) {
-  if (!s.panel) return;
-  const P = s.panel;
-  const enter = ease(fade(local, P.t || 1.2, (P.t || 1.2) + 0.45));
-  const exit = 1 - fade(local, P.until || 4.0, (P.until || 4.0) + 0.4);
-  const a = Math.min(enter, exit);
-  if (a <= 0) return;
-  // panel ditaruh kanan-bawah: tidak menutupi lower-third (kiri-bawah)
-  // maupun penanda objek yang biasanya di tengah/kanan-atas layar
-  const w = 470, h = 150 + P.lines.length * 46;
-  const x = OW - w - 80 + (1 - enter) * 90, y = OH - h - 96;
-  rect(x, y, w, h, 'rgba(12,10,26,0.86)');
-  frame(x, y, w, h, 'rgba(232,192,74,0.4)');
-  rect(x, y, w, 4, P.accent || GOLD);
-  txt(P.head || '', x + 26, y + 44, { font: PS(15), color: P.accent || GOLD, alpha: a });
-  rect(x + 26, y + 58, w - 52, 2, 'rgba(232,192,74,0.3)');
-  // baris rumus: huruf muncul satu per satu
-  const per = P.cps || 0.035;
-  let shown = Math.max(0, Math.floor((local - (P.t || 1.2) - 0.5) / per));
-  let drawn0 = 0;
-  P.lines.forEach((ln, i) => {
-    const ly = y + 104 + i * 46;
-    const take = Math.max(0, Math.min(ln.length, shown - drawn0));
-    txt(ln.slice(0, take), x + 26, ly, { font: VT(38), color: P.ink ? '#7ae68a' : IVORY, alpha: a });
-    if (take > 0 && take < ln.length && (t * 3 % 1) < 0.6) {
-      txt('_', x + 26 + g.measureText(ln.slice(0, take)).width + 2, ly,
-        { font: VT(38), color: P.accent || GOLD, alpha: a });
-    }
-    drawn0 += ln.length;
-  });
-}
-
-/* ---------- END CARD ---------- */
+/* ---------- END CARD: bersih, rapat, satu kolom ---------- */
 function endcard(s, t, local) {
   const p = fade(local, 0.1, 0.8);
   if (p <= 0) return;
   const gr = g.createLinearGradient(0, 0, 0, OH);
-  gr.addColorStop(0, `rgba(10,8,24,${0.86 * p})`);
-  gr.addColorStop(1, `rgba(26,18,52,${0.92 * p})`);
+  gr.addColorStop(0, `rgba(8,7,20,${0.90 * p})`);
+  gr.addColorStop(1, `rgba(20,14,42,${0.94 * p})`);
   g.fillStyle = gr; g.fillRect(0, 0, OW, OH);
-  // hujan debu emas
-  for (let i = 0; i < 60; i++) {
-    const x = hash2(i, 3) * OW;
-    const y = ((hash2(i, 7) * OH) + t * (12 + hash2(i, 11) * 26)) % OH;
-    rect(x, y, 3, 3, `rgba(255,224,150,${0.10 + hash2(i, 5) * 0.3})`);
-  }
-  logo(t, OW / 2, 220, 58, p);
-  txt('PETUALANGAN ENKRIPSI RAHASIA', OW / 2, 262, { font: VT(36), color: 'rgba(232,226,214,0.8)', align: 'center', alpha: p });
-  rect(OW / 2 - 300, 300, 600, 3, `rgba(232,192,74,${0.4 * p})`);
+  logo(t, OW / 2, 178, 52, p);
+  rect(OW / 2 - 250, 206, 500, 2, `rgba(232,192,74,${0.35 * p})`);
+  txt('PETUALANGAN ENKRIPSI RAHASIA', OW / 2, 238, { font: VT(34), color: MUTED, align: 'center', alpha: p });
+  // tiga poin fitur, satu kolom rapi (tanpa wajik di setiap baris)
   (s.bullets || []).forEach((b, i) => {
-    const bp = ease(fade(local, 1.0 + i * 0.28, 1.35 + i * 0.28));
+    const bp = ease(fade(local, 0.9 + i * 0.26, 1.2 + i * 0.26));
     if (bp <= 0) return;
-    const y = 366 + i * 58;
-    const x = OW / 2 - 300 + (1 - bp) * 40;
-    g.globalAlpha = bp;
-    dia(x + 14, y - 10, 9, GOLD);
-    txt(b, x + 44, y, { font: VT(40), color: IVORY, alpha: bp });
-    g.globalAlpha = 1;
+    txt(b, OW / 2 - 300, 320 + i * 52, { font: VT(34), color: IVORY, alpha: bp });
   });
-  const cp = ease(fade(local, 3.0, 3.5));
+  const cp = ease(fade(local, 2.5, 3.0));
   if (cp > 0) {
-    const bx = OW / 2 - 300, by = OH - 190;
-    rect(bx, by, 600, 74, 'rgba(232,192,74,0.14)');
-    frame(bx, by, 600, 74, `rgba(232,192,74,${0.6 * cp})`, 3);
-    txt(s.cta || 'COBA SEKARANG', OW / 2, by + 46, { font: PS(20), color: GOLD_HI, align: 'center', alpha: cp, shadow: 'rgba(0,0,0,0.8)' });
+    txt(s.cta || 'COBA SEKARANG', OW / 2, OH - 176, { font: PS(19), color: GOLD_HI, align: 'center', alpha: cp });
   }
-  txt(s.url || '', OW / 2, OH - 74, { font: VT(34), color: 'rgba(200,194,232,0.85)', align: 'center', alpha: ease(fade(local, 3.6, 4.1)) });
+  txt(s.url || '', OW / 2, OH - 128, { font: VT(30), color: MUTED, align: 'center', alpha: ease(fade(local, 3.0, 3.5)) });
 }
 
 /* ---------- FRAME ---------- */
 function frameAt(t) {
   g.clearRect(0, 0, OW, OH);
   if (!TL) return;
-  const dur = TL.dur;
-  for (const s of TL.segments) {
-    const local = t - s.t0;
-    if (local < 0 || local > s.dur) continue;
+  const s = segAt(t);
+  if (s) {
+    const local = localOf(s, t);
     if (s.kind === 'hook') hook(s, t);
-    else if (s.kind === 'title') title(s, t);
-    else if (s.kind === 'shot') { lowerThird(s, t, local); panel(s, t, local); marker(s.marker, t, local); }
+    else if (s.kind === 'title') titleCard(s, t);
+    else if (s.kind === 'shot') { chapter(s, t, local); marker(s.marker, t, local); }
     else if (s.kind === 'endcard') endcard(s, t, local);
   }
-  letterbox(t, dur);
+  bars(t, TL.dur);
   wipes(t);
-  if (t > 0.8 && t < dur - 0.4) progress(t, dur);
 }
 window.Overlay = { frame: frameAt, OW, OH };
 
-/* ---------- AUDIO: musik chiptune + SFX, dirender offline ---------- */
+/* ---------- AUDIO: musik chiptune + SFX game, dirender offline ---------- */
 window.renderAudio = async () => {
   const sr = 44100, dur = TL.dur + 0.4;
   const off = new OfflineAudioContext(2, Math.ceil(dur * sr), sr);
@@ -318,7 +236,6 @@ window.renderAudio = async () => {
   Snd.tone = (f, o = {}) => tone0.call(Snd, f, Object.assign({}, o, { when: (o.when || 0) + offset }));
   Snd.noise = (d = .15, v = .06, when = 0) => noise0.call(Snd, d, v, when + offset);
   try {
-    // ---- musik: pola berganti mengikuti babak ----
     TL.music.forEach(m => {
       const pat = Music.defs[m.pat] || Music.defs.title;
       const steps = Math.ceil(m.dur / pat.dur);
@@ -331,7 +248,6 @@ window.renderAudio = async () => {
         if (k % 4 === 0) tone0.call(Snd, pat.base / 2, { d: pat.dur * 1.7, type: 'sine', v: pat.v * 1.5 * (m.vol || 1), when });
       }
     });
-    // ---- SFX per cue ----
     TL.cues.forEach(c => {
       offset = c.t;
       const a = c.v === undefined ? 1 : c.v;
@@ -383,6 +299,41 @@ window.renderAudio = async () => {
   let bin = '';
   for (let i = 0; i < u8.length; i += 8192) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
   return btoa(bin);
+};
+
+/* ---------- pemeriksaan kepadatan & kesesuaian lebar teks ---------- */
+window.coverStats = () => {
+  const cv = document.getElementById('ov');
+  const d = cv.getContext('2d').getImageData(0, 0, OW, OH).data;
+  let n = 0, tot = 0, minx = 1e9, maxx = -1, miny = 1e9, maxy = -1;
+  for (let y = BAR + 2; y < OH - BAR - 2; y += 2) {
+    for (let x = 0; x < OW; x += 2) {
+      tot++;
+      if (d[(y * OW + x) * 4 + 3] > 140) {
+        n++;
+        if (x < minx) minx = x; if (x > maxx) maxx = x;
+        if (y < miny) miny = y; if (y > maxy) maxy = y;
+      }
+    }
+  }
+  return { frac: n / tot, n: n, minx: minx, maxx: maxx, miny: miny, maxy: maxy };
+};
+
+/* lebar tiap teks supaya bisa dipastikan tidak melewati bar / keluar layar */
+window.textFit = () => {
+  const out = {};
+  if (!TL) return out;
+  const avail = OW - SAFE_IN * 2;
+  g.save();
+  TL.segments.forEach(s => {
+    if (s.sub) { g.font = VT(31); out[s.name + ' sub'] = [Math.round(g.measureText(s.sub).width), avail]; }
+    if (s.head) { g.font = PS(15); out[s.name + ' head'] = [Math.round(g.measureText((s.num || '') + '     ' + s.head).width), avail]; }
+    (s.bullets || []).forEach((b, i) => { g.font = VT(34); out[s.name + ' bullet' + i] = [Math.round(g.measureText(b).width), OW - 2 * (OW / 2 - 300)]; });
+    if (s.url) { g.font = VT(30); out[s.name + ' url'] = [Math.round(g.measureText(s.url).width), avail]; }
+    if (s.cta) { g.font = PS(19); out[s.name + ' cta'] = [Math.round(g.measureText(s.cta).width), avail]; }
+  });
+  g.restore();
+  return out;
 };
 
 window.assetsReady = false;

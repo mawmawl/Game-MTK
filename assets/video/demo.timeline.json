@@ -26,17 +26,7 @@
    "accent": "#ffe9a8",
    "num": "01",
    "head": "TEMUKAN BUKTI",
-   "sub": "Pesan rahasia dan catatan fungsi disembunyikan di dalam ruangan",
-   "panel": {
-    "head": "CATATAN FUNGSI",
-    "t": 3.4,
-    "until": 6.4,
-    "cps": 0.05,
-    "lines": [
-     "f(x) = a\u00b7x + b",
-     "a = 1    b = 25"
-    ]
-   }
+   "sub": "Cari PESAN RAHASIA dan CATATAN FUNGSI \u2014 periksa objek dengan E"
   },
   {
    "name": "s2",
@@ -46,18 +36,7 @@
    "accent": "#7ae68a",
    "num": "02",
    "head": "MESIN ENKRIPSI",
-   "sub": "Masukkan a dan b \u2014 sandi dihitung otomatis, kamu tidak perlu berhitung manual",
-   "panel": {
-    "head": "HASIL SANDI (mod 53)",
-    "t": 3.0,
-    "until": 6.2,
-    "cps": 0.045,
-    "ink": true,
-    "lines": [
-     "y = a\u00b7x + b",
-     "KXQZABXQUMAA"
-    ]
-   },
+   "sub": "Sandi dihitung mesin: y = a\u00b7x + b (mod 53)",
    "marker": {
     "x": 576,
     "y": 112.8,
@@ -77,7 +56,7 @@
    "accent": "#e8a44a",
    "num": "03",
    "head": "ANTAR KE KURIR",
-   "sub": "Harus persis sama \u2014 huruf besar dan kecil punya arti berbeda",
+   "sub": "Ketik sandinya persis \u2014 huruf besar dan kecil berbeda",
    "marker": {
     "x": 432,
     "y": 280.0,
@@ -97,7 +76,7 @@
    "accent": "#ff8a7a",
    "num": "04",
    "head": "HINDARI MATA-MATA",
-   "sub": "Kerucut pandang bisa dihindari di balik perabot \u2014 tertangkap berarti ulang dari awal"
+   "sub": "Kerucut pandang bisa dihindari di balik perabot"
   },
   {
    "name": "s5",
@@ -117,8 +96,8 @@
    "dur": 10.8,
    "bullets": [
     "3 LEVEL \u2014 KAMAR, SEKOLAH, LAB RUSAK",
-    "PESAN, FUNGSI, DAN LOKASI SELALU BERUBAH",
-    "100% OFFLINE \u2022 VANILLA JS \u2022 DESKTOP + LAYAR SENTUH"
+    "PESAN, FUNGSI, LOKASI SELALU BERUBAH",
+    "100% OFFLINE \u2022 TANPA ASET LUAR"
    ],
    "cta": "COBA SEKARANG",
    "url": "github.com/mawmawl/Game-MTK"

@@ -96,13 +96,19 @@ selalu sama. Pemeriksaan otomatis: `python3 tools/check_intro.py` (piksel per ba
 
 ## Trailer / video demo (gameplay + motion graphic)
 
-`tools/render_demo.py` menyusun trailer 65 detik: hook → judul → lima callout gameplay →
-end card, dengan overlay motion-graphic, musik chiptune, dan SFX game.
+`tools/render_demo.py` menyusun trailer ±64 detik: hook → judul → lima babak gameplay → end card,
+dengan overlay motion-graphic, musik chiptune, dan SFX game.
+
+Tata letaknya sengaja **tenang**: gameplay jadi bintangnya. Semua teks tinggal di dalam bar
+letterbox (atas & bawah) — babak nomor + judul di bar bawah, satu baris keterangan di bar atas —
+dan satu-satunya elemen yang boleh menyentuh gambar adalah cincin penanda objek. Hook, kartu judul,
+dan end card meredam latar dulu supaya tulisannya tidak bertabrakan dengan HUD/objek game.
 
 ```bash
 python3 tools/render_demo.py                  # rekam, render overlay+audio, susun, periksa
 python3 tools/render_demo.py --dry-run        # cetak timeline saja
 python3 tools/render_demo.py --stage smoke    # jalankan semua fase shot tanpa memotret + uji keadaan akhir
+python3 tools/render_demo.py --overlay-check  # ukur kepadatan overlay & lebar teks (cepat, tanpa render)
 python3 tools/render_demo.py --overlay-preview 2,12,26,55   # still overlay (PNG)
 python3 tools/render_demo.py --stage gameplay # hanya rekam gameplay
 python3 tools/render_demo.py --check          # periksa demo.mp4 yang sudah ada (tanpa render ulang)
