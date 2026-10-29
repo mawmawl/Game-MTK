@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Secret Mail — driver gameplay (trailer)</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<!-- Perekam gameplay trailer.
+
+     TRIKNYA: requestAnimationFrame & performance.now diganti SEBELUM game dimuat,
+     jadi loop game tidak berjalan sendiri. Perender memanggil stepFrames(n, dtMs)
+     untuk memajukan game, lalu memotret layar tiap langkah. Hasilnya 30 fps yang
+     benar-benar mulus dan bisa diulang (bukan rekaman layar real-time yang ngelag).
+     Input disuntik lewat setKey()/tap() ke jalur input yang sama dengan pemain. -->
+<div id="wrap">
+  <canvas id="game" width="640" height="360"></canvas>
+  <canvas id="ui" width="640" height="360"></canvas>
+</div>
+<script>
+window.__t = 0;
+window.__cb = null;
+window.performance.now = () => window.__t;
+window.requestAnimationFrame = cb => { window.__cb = cb; return 1; };
+window.stepFrames = (n, dtMs) => {
+  for (let i = 0; i < n; i++) {
+    window.__t += dtMs;
+    const cb = window.__cb;
+    window.__cb = null;
+    if (cb) cb(window.__t);
+  }
+};
+window.setKey = (k, down) => {
+  Input.down[k] = !!down;
+  if (k.length === 1) Input.down[k.toLowerCase()] = !!down;
+};
+window.tap = k => { Input.pressed.add(k); if (k.length === 1) Input.charQueue.push(k); };
+/* Jalur aksi khusus perekam trailer: memanggil fungsi game yang sama dengan
+   yang dipakai pemain (interact / onDone dialog), tanpa bergantung pada
+   dialog atau panel yang mungkin masih terbuka. */
+window.interactNow = () => {
+  const L = window.game.level;
+  if (!L) return 'tidak ada level';
+  if (L.dialog) { L.dialog = null; return 'dialog ditutup'; }
+  if (L.courierUI.open) { L.courierUI.open = false; return 'panel kurir ditutup'; }
+  if (L.machine.open) { L.machine.open = false; return 'mesin ditutup'; }
+  const n = L.near;
+  if (!n) return 'tidak ada objek dalam jangkauan';
+  interact(n);
+  return 'interaksi: ' + (n.type || n.label || 'objek');
+};
+window.dialogNext = () => {
+  const L = window.game.level;
+  if (!L || !L.dialog) return 'tidak ada dialog';
+  const cb = L.dialog.onDone;
+  L.dialog = null;
+  if (cb) cb();
+  return 'dialog lanjut';
+};
+window.resetStage = level => {
+  const L = window.game.level;
+  if (L) {
+    L.dialog = null; L.machine.open = false; L.machine.phase = 'input';
+    L.courierUI.open = false; L.journal = false; L.pause = null;
+    L.hitstop = 0; L.pulse = null; L.flash = null; L.courierLeaving = null;
+  }
+  window.game.goto('game', { level });
+  return 'babak siap';
+};
+window.assetsReady = false;
+window.__err = null;
+addEventListener('error', e => { window.__err = (e && e.message) || 'error'; });
+</script>
+<script src="../js/engine.js"></script>
+<script src="../js/crypto.js"></script>
+<script src="../js/sprites.js"></script>
+<script src="../js/levels.js"></script>
+<script src="../js/enemies.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/cinematic.js"></script>
+<script src="../js/scenes.js"></script>
+<script src="../js/main.js"></script>
+<script>
+const mark = () => { window.assetsReady = true; };
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(mark);
+setTimeout(mark, 3000);
+</script>
+</body>
+</html>

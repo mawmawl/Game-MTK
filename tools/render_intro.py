@@ -60,6 +60,17 @@ class CDP:
         r = self.call("Runtime.evaluate", expression=expr, returnByValue=True, awaitPromise=True)
         return r.get("result", {}).get("value")
 
+    def js_checked(self, expr):
+        """Seperti js(), tapi MELEMPAR kalau JS-nya error — supaya kegagalan
+        di halaman tidak lewat diam-diam (pernah kejadian: const yang
+        dideklarasikan ulang membuat seluruh aksi babak tidak dijalankan)."""
+        r = self.call("Runtime.evaluate", expression=expr, returnByValue=True, awaitPromise=True)
+        if "exceptionDetails" in r:
+            d = r["exceptionDetails"]
+            desc = d.get("exception", {}).get("description") or d.get("text")
+            raise RuntimeError("JS error di halaman: " + str(desc).split("\n")[0])
+        return r.get("result", {}).get("value")
+
     def close(self):
         try:
             self.ws.close()

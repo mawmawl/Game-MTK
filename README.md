@@ -64,8 +64,9 @@ Game_MTK/
 │   ├── cinematic.js    # intro sinematik — murni fungsi waktu (dipakai juga untuk render video)
 │   ├── scenes.js       # buildLevel + semua scene (cinema, title, intro, game, hasil, ending)
 │   └── main.js         # boot, save/load, loop 60fps
-├── assets/video/       # hasil render intro (intro.mp4, intro.gif, poster)
-└── docs/
+├── assets/video/       # hasil render: intro.mp4/gif, demo.mp4 (trailer), teaser, poster
+├── tools/              # perender & uji: render_intro, render_demo, check_*
+├── docs/
     ├── IDEA.md         # brief awal
     └── RANCANGAN.md    # rancangan lengkap
 ```
@@ -92,6 +93,44 @@ yang sama dengan game, lalu digabung ffmpeg — jadi tidak ada perekaman real-ti
 selalu sama. Pemeriksaan otomatis: `python3 tools/check_intro.py` (piksel per babak),
 `python3 tools/check_game_intro.py` (integrasi intro di game sungguhan), dan
 `python3 tools/check_motion.py` (audit: tiap layar wajib bergerak).
+
+## Trailer / video demo (gameplay + motion graphic)
+
+`tools/render_demo.py` menyusun trailer 65 detik: hook → judul → lima callout gameplay →
+end card, dengan overlay motion-graphic, musik chiptune, dan SFX game.
+
+```bash
+python3 tools/render_demo.py                  # rekam, render overlay+audio, susun, periksa
+python3 tools/render_demo.py --dry-run        # cetak timeline saja
+python3 tools/render_demo.py --stage smoke    # jalankan semua fase shot tanpa memotret + uji keadaan akhir
+python3 tools/render_demo.py --overlay-preview 2,12,26,55   # still overlay (PNG)
+python3 tools/render_demo.py --stage gameplay # hanya rekam gameplay
+python3 tools/render_demo.py --check          # periksa demo.mp4 yang sudah ada (tanpa render ulang)
+```
+
+Hasil: `assets/video/demo.mp4` (1280x720, h264 + aac, ±64 dtk), `demo_teaser.gif` (15 dtk, 640x360),
+`demo_poster.png`, `demo_audio.wav`, `demo.timeline.json`.
+
+Cara kerjanya:
+
+| Tahap | Berkas | Catatan |
+|---|---|---|
+| 1. gameplay | `tools/demo_gameplay.html` | `requestAnimationFrame` & `performance.now` diganti **sebelum** game dimuat, jadi loop digerakkan tangan (`stepFrames`) dan tiap frame dipotret. Hasil 30 fps mulus & bisa diulang, bukan rekaman layar yang ngelag. Aksi disuntik lewat jalur game sendiri: `setKey`, `tap`, `window.game.tp`, plus `interactNow()`, `dialogNext()`, dan `resetStage(level)`. |
+| 2. overlay | `tools/demo_overlay.html` | motion graphic 1280x720 PNG ber-alpha, murni fungsi waktu `Overlay.frame(t)`: slam hook, logo emas, lower-third, penanda objek (posisinya dibaca dari state game saat direkam), panel rumus, tirai piksel, end card, bar progres. Latar halaman dibuat transparan lewat `Emulation.setDefaultBackgroundColorOverride`. |
+| 3. audio | `demo_overlay.html` | dirender offline (`OfflineAudioContext`) dari pola musik & SFX game, ditata mengikuti cue timeline (impact, whoosh, chime, tick, star, fanfare, machine, ...). |
+| 4. susun | `render_demo.py` | ffmpeg: gameplay di-skala 2x (neighbor) + overlay + audio → `demo.mp4`. |
+
+Semua skenario shot, teks overlay, penempatan cue, dan pemeriksaannya ada di satu berkas:
+`tools/render_demo.py` (`SHOTS`, `SEGMENTS`, `MARKER_QUERY`, `SHOT_ASSERT`, `stage_check`).
+Tiap fase JS dibungkus IIFE dan dievaluasi dengan `js_checked` — kesalahan JS langsung menggagalkan
+render, tidak lewat diam-diam (dua bug asli pernah tertangkap begini: `const` ganda dan dialog babak
+sebelumnya yang menelan input). Di akhir tiap babak ada `SHOT_ASSERT`: pesan & catatan benar-benar
+ditemukan, sandi benar-benar terbentuk, pesan benar-benar terkirim, pemain benar-benar tertangkap,
+tiga bintang benar-benar meletup.
+
+Pemeriksaan hasil (`--check`): durasi & stream (ffprobe), isi emas/ivory/merah tiap babak, latar
+gameplay tidak gelap, penanda objek muncul di koordinatnya, puncak RMS audio jatuh di waktu cue,
+dan tiap cue penting (impact/chime/star/...) benar-benar menaikkan RMS.
 
 ## Efek gerak di gameplay
 
