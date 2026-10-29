@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Server statis untuk "Kurir Sandi" (anti-cache saat ngoding).
+"""Server statis untuk "Secret Mail" (anti-cache saat ngoding).
 
 Pakai:
     python3 serve.py            # http://127.0.0.1:8123
@@ -30,7 +30,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 socketserver.TCPServer.allow_reuse_address = True
 with socketserver.TCPServer(("127.0.0.1", PORT), Handler) as httpd:
-    print(f"Kurir Sandi  ->  http://127.0.0.1:{PORT}")
+    print(f"Secret Mail  ->  http://127.0.0.1:{PORT}")
     print(f"mode sentuh di desktop: http://127.0.0.1:{PORT}/?touch=1   (Ctrl+C untuk stop)")
     try:
         httpd.serve_forever()

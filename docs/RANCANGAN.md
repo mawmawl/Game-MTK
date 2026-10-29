@@ -1,4 +1,4 @@
-# RANCANGAN GAME — "KURIR SANDI" (judul sementara, bisa diganti)
+# RANCANGAN GAME — "SECRET MAIL"
 
 Game petualangan 2D **pixel art premium** bertema **enkripsi end-to-end**, berjalan di browser (HTML5 Canvas + vanilla JS, tanpa library). Dibangun dari nol di `/Users/rdws./Documents/Game_MTK`.
 

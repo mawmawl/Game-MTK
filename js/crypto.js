@@ -1,6 +1,6 @@
 'use strict';
 /* ============================================================
-   KURIR SANDI — crypto.js
+   SECRET MAIL — crypto.js
    Skema enkripsi f(x) = ax + b (mod 53) di belakang layar:
      - Huruf KAPITAL : A=1, B=2, ... Z=26
      - Huruf kecil   : a=-1, b=-2, ... z=-26
@@ -86,7 +86,7 @@ const Crypto = {
     } else {
       a = sri(2, 12);
       b = sri(-20, 20);
-      if (b === 0) b = 7;
+      while (b === 0) b = sri(-20, 20);   // undi ulang: nilai 7 tidak boleh berbobot dua kali
     }
     rng = saveRng;
     return { message, a, b, encrypted: this.encrypt(message, a, b) };

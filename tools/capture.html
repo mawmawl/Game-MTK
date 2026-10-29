@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Secret Mail — capture intro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<!-- Panggung perender video: markup & skrip sama dengan game, TANPA game loop,
+     supaya tiap frame benar-benar ditentukan oleh waktu (Cinematic.frame(t)). -->
+<div id="wrap">
+  <canvas id="game" width="640" height="360"></canvas>
+  <canvas id="ui" width="640" height="360"></canvas>
+</div>
+<script src="../js/engine.js"></script>
+<script src="../js/crypto.js"></script>
+<script src="../js/sprites.js"></script>
+<script src="../js/levels.js"></script>
+<script src="../js/enemies.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/cinematic.js"></script>
+<script>
+window.drawFrame = t => Cinematic.frame(t);
+window.CINEMA_DUR = Cinematic.DUR;
+window.assetsReady = false;
+window.__err = null;
+addEventListener('error', e => { window.__err = (e && e.message) || 'error tak dikenal'; });
+/* font pixel wajib sudah siap sebelum frame pertama direkam */
+const mark = () => { window.assetsReady = true; };
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(mark);
+setTimeout(mark, 3000);
+</script>
+</body>
+</html>

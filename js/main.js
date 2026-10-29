@@ -1,6 +1,6 @@
 'use strict';
 /* ============================================================
-   KURIR SANDI — main.js
+   SECRET MAIL — main.js
    Boot, save/load, game loop 60fps.
    ============================================================ */
 
@@ -9,23 +9,27 @@ const G = {
   save: null
 };
 
+const SAVE_KEY = 'secretMailV1';
+const SAVE_KEY_OLD = 'kurirSandiV1';   // migrasi dari nama game lama
+
 function loadSave() {
   try {
-    const s = JSON.parse(localStorage.getItem('kurirSandiV1'));
+    const raw = localStorage.getItem(SAVE_KEY) || localStorage.getItem(SAVE_KEY_OLD);
+    const s = JSON.parse(raw);
     if (s && typeof s.unlocked === 'number') return s;
   } catch (e) { /* abaikan */ }
   return { unlocked: 1, best: {}, muted: false };
 }
 function persist() {
-  try { localStorage.setItem('kurirSandiV1', JSON.stringify(G.save)); } catch (e) { /* abaikan */ }
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(G.save)); } catch (e) { /* abaikan */ }
 }
 
 function boot() {
   G.save = loadSave();
   Snd.muted = !!G.save.muted;
   if (G.params.has('mute')) Snd.muted = G.params.get('mute') === '1';
-  Scenes.go('title');
-  Music.set('title');
+  Scenes.go(introWanted() ? 'cinema' : 'title');
+  Music.set(introWanted() ? 'intro' : 'title');
 
   let last = performance.now();
   function frame(now) {
@@ -58,13 +62,38 @@ function boot() {
   requestAnimationFrame(frame);
 }
 
-/* Tunggu font pixel siap agar teks tidak melompat */
+/* Aset gambar lokal. Bila gagal dimuat, lapisan aset dilewati dan game tetap jalan. */
+const IMG = {};
+const IMG_LIST = [
+  ['velvet', 'assets/tex/velvet.png'],
+  ['dust', 'assets/tex/golddust.png'],
+  ['emblem', 'assets/emblem.png']
+];
+function loadAssets(cb) {
+  let done = false;
+  const finish = () => { if (!done) { done = true; cb(); } };
+  let left = IMG_LIST.length;
+  if (!left) return finish();
+  IMG_LIST.forEach(([key, src]) => {
+    const im = new Image();
+    const step = () => {
+      IMG[key] = (im.complete && im.naturalWidth) ? im : null;
+      if (--left === 0) finish();
+    };
+    im.onload = step;
+    im.onerror = step;
+    im.src = src;
+  });
+  setTimeout(finish, 2500); // jangan biarkan permintaan menggantung menahan game
+}
+
+/* Tunggu font pixel + aset siap agar tampilan tidak melompat */
 if (document.fonts && document.fonts.ready) {
   let started = false;
-  const go = () => { if (!started) { started = true; boot(); } };
+  const go = () => { if (!started) { started = true; loadAssets(boot); } };
   document.fonts.ready.then(go);
   setTimeout(go, 2500); // jaga-jaga bila font gagal dimuat (offline)
-} else boot();
+} else loadAssets(boot);
 
 /* Tombol UI hover → untuk kursor */
 (function patchHover() {

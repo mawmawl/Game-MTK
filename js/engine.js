@@ -1,10 +1,11 @@
 'use strict';
 /* ============================================================
-   KURIR SANDI — engine.js
+   SECRET MAIL — engine.js
    Canvas, input, kamera, collision, partikel, audio, teks
    ============================================================ */
 
-const TILE = 32, VW = 640, VH = 360;
+const TILE = 32;
+let VW = 640, VH = 360;          // lebar internal mengikuti rasio layar (mode layar penuh)
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const uiCanvas = document.getElementById('ui');
@@ -12,18 +13,27 @@ const uictx = uiCanvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 let viewScale = 1;
 
+/* Lebar internal = rasio layar x 360. Dibuat adaptif supaya latar & UI
+   mengisi seluruh jendela tanpa kotak hitam di pinggir (bukan letterbox).
+   Batas 620..1200: di bawah 620 panel UI (kurir 620px) tidak muat,
+   di atas 1200 teks jadi terlalu kecil relatif layar. */
 function fitView() {
-  const w = window.innerWidth, h = window.innerHeight;
-  let s = Math.min(w / VW, h / VH);
-  if (s >= 1) s = Math.floor(s);
+  const w = Math.max(1, window.innerWidth), h = Math.max(1, window.innerHeight);
+  VH = 360;
+  VW = Math.round(VH * (w / h));
+  VW = VW < 620 ? 620 : (VW > 1200 ? 1200 : VW);
+  if (VW % 2) VW++;
+  canvas.width = VW;
+  canvas.height = VH;
+  const s = Math.min(w / VW, h / VH);
   viewScale = s;
   canvas.style.width = (VW * s) + 'px';
   canvas.style.height = (VH * s) + 'px';
   // kanvas UI pada resolusi tampilan agar teks tajam (tidak ikut ter-upscale)
   uiCanvas.style.width = canvas.style.width;
   uiCanvas.style.height = canvas.style.height;
-  uiCanvas.width = Math.round(VW * s);
-  uiCanvas.height = Math.round(VH * s);
+  uiCanvas.width = Math.max(1, Math.round(VW * s));
+  uiCanvas.height = Math.max(1, Math.round(VH * s));
 }
 window.addEventListener('resize', fitView);
 fitView();
@@ -189,14 +199,16 @@ Input.init();
 /* ---------------- Kamera ---------------- */
 const Camera = {
   x: 0, y: 0, ox: 0, oy: 0, shakeT: 0, shakeA: 0,
+  /* ruangan yang lebih sempit dari layar diletakkan di tengah
+     (bukan menempel kiri) supaya latar terlihat penuh */
   snap(tx, ty, rw, rh) {
-    this.x = clamp(tx - VW / 2, 0, Math.max(0, rw - VW));
-    this.y = clamp(ty - VH / 2, 0, Math.max(0, rh - VH));
+    this.x = rw <= VW ? (rw - VW) / 2 : Math.min(Math.max(tx - VW / 2, 0), rw - VW);
+    this.y = rh <= VH ? (rh - VH) / 2 : Math.min(Math.max(ty - VH / 2, 0), rh - VH);
   },
   follow(tx, ty, rw, rh, dt) {
     const k = 1 - Math.exp(-dt * 7);
-    const ax = clamp(tx - VW / 2, 0, Math.max(0, rw - VW));
-    const ay = clamp(ty - VH / 2, 0, Math.max(0, rh - VH));
+    const ax = rw <= VW ? (rw - VW) / 2 : Math.min(Math.max(tx - VW / 2, 0), rw - VW);
+    const ay = rh <= VH ? (rh - VH) / 2 : Math.min(Math.max(ty - VH / 2, 0), rh - VH);
     this.x = lerp(this.x, ax, k);
     this.y = lerp(this.y, ay, k);
     if (this.shakeT > 0) {
@@ -298,12 +310,15 @@ const Particles = {
       if (p.life <= 0) L.splice(i, 1);
     }
   },
+  /* dipanggil DI DALAM ctx.translate(-kamera): semua koordinat memakai koordinat dunia.
+     Sebelumnya posisi dikurangi kamera di sini, sehingga titik partikel tergeser
+     dua kali (partikel tampak melenceng mengikuti kamera). */
   draw(cx, cy) {
     for (const p of this.list) {
       const a = clamp(p.life / p.life0, 0, 1);
-      const x = Math.round(p.x - cx), y = Math.round(p.y - cy);
+      const x = Math.round(p.x), y = Math.round(p.y);
       if (p.text) {
-        txt(p.text, x, y, { font: FONT_VT(17), color: p.c, align: 'center', alpha: a, shadow: 'rgba(0,0,0,.6)' });
+        txt(p.text, x, y, { font: FONT_VT(17), color: p.c, align: 'center', alpha: a, shadow: 'rgba(0,0,0,.6)', world: true });
       } else {
         ctx.globalAlpha = a;
         if (p.add) ctx.globalCompositeOperation = 'lighter';

@@ -1,6 +1,6 @@
 'use strict';
 /* ============================================================
-   KURIR SANDI — enemies.js
+   SECRET MAIL — enemies.js
    AI mata-mata & drone: patroli -> waspada -> kejar -> tertangkap.
    Kerucut penglihatan terhalang perabot tinggi (bisa sembunyi).
    ============================================================ */

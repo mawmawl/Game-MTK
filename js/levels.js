@@ -1,6 +1,6 @@
 'use strict';
 /* ============================================================
-   KURIR SANDI — levels.js
+   SECRET MAIL — levels.js
    Definisi 3 level: peta tile, objek, palet tema, musuh, intro.
    Kandidat penyembunyian = objek dengan search:true
    (pesan & catatan fungsi diacak ke 2 objek berbeda setiap main).
@@ -51,10 +51,10 @@ const LEVELS = [
       { type: 'stringlights', x: 6,  y: 1, w: 4, h: 1, deco: 'wall' },
       { type: 'poster',       x: 12, y: 1, w: 1, h: 1, deco: 'wall' },
       { type: 'clock',        x: 19, y: 1, w: 1, h: 1, deco: 'wall' },
-      { type: 'bed',          x: 2,  y: 2, w: 3, h: 5, solid: true, sight: true, search: true, label: 'Tempat Tidur' },
+      { type: 'bed',          x: 1,  y: 2, w: 3, h: 5, solid: true, sight: true, search: true, label: 'Tempat Tidur' },
       { type: 'nightstand',   x: 5,  y: 2, w: 1, h: 1, solid: true, sight: false, deco: 'floor' },
       { type: 'floorlamp',    x: 7,  y: 2, w: 1, h: 2, solid: true, sight: false, deco: 'floor',
-        col: { x: 0.3, y: 1.45, w: 0.4, h: 0.55 } },
+        col: { x: 0.32, y: 0.42, w: 0.36, h: 0.5 } },   // mengikuti tiang lampu yang tergambar
       { type: 'desk',         x: 16, y: 2, w: 4, h: 2, solid: true, sight: true, search: true, label: 'Meja Belajar' },
       { type: 'dresser',      x: 10, y: 2, w: 2, h: 1, solid: true, sight: true, search: true, label: 'Nakas' },
       { type: 'trophy',       x: 13, y: 2, w: 1, h: 2, solid: true, sight: true, deco: 'floor' },
@@ -125,7 +125,8 @@ const LEVELS = [
       { type: 'clock',      x: 18, y: 1, w: 1, h: 1, deco: 'wall' },
       { type: 'window',     x: 21, y: 1, w: 3, h: 1, deco: 'wall' },
       { type: 'teacherdesk',x: 12, y: 3, w: 3, h: 2, solid: true, sight: true, search: true, label: 'Meja Guru' },
-      { type: 'globe',      x: 24, y: 2, w: 2, h: 2, solid: true, sight: true, label: 'Globe' },
+      { type: 'globe',      x: 24, y: 2, w: 2, h: 2, solid: true, sight: true, label: 'Globe',
+        col: { x: 0.12, y: 0.56, w: 1.72, h: 1.34 } },   // hanya bola + dudukannya, sudut kosong
       { type: 'schooldesk', x: 6,  y: 6, w: 2, h: 2, solid: true, sight: true, search: true, label: 'Meja Siswa' },
       { type: 'schooldesk', x: 11, y: 6, w: 2, h: 2, solid: true, sight: true, search: true, label: 'Meja Siswa' },
       { type: 'schooldesk', x: 16, y: 6, w: 2, h: 2, solid: true, sight: true, search: true, label: 'Meja Siswa' },
@@ -230,7 +231,7 @@ const LEVELS = [
     ],
     enemies: [
       { type: 'drone', speed: 62, chaseSpeed: 108, range: 150,
-        path: [[4, 6], [25, 6], [25, 13], [4, 13]] },
+        path: [[4, 6], [24, 6], [24, 13], [4, 13]] },   // x=24: kolom 25 terhalang tabung
       { type: 'spy', look: 'guard', speed: 38, chaseSpeed: 78, range: 130,
         path: [[4, 4], [26, 4], [26, 7], [21, 7], [21, 13], [6, 13], [6, 9], [3, 9], [3, 4]] }
     ],

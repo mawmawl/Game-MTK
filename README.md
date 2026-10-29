@@ -1,4 +1,4 @@
-# Kurir Sandi
+# Secret Mail
 
 **Game matematika dengan konsep enkripsi** — petualangan pixel art 2D bertema *enkripsi end-to-end*.
 Vanilla JS + Canvas, tanpa library, tanpa aset eksternal (semua sprite digambar dengan kode, semua SFX disintesis Web Audio) — bisa jalan 100% offline.
@@ -80,4 +80,22 @@ Urutan `<script>` di `index.html` penting (engine lebih dulu, main terakhir). Se
 | `?touch=1` | paksa mode sentuh di desktop |
 | `?mute=0` | paksa suara nyala |
 
-Kemajuan pemain (level terbuka, bintang, skor terbaik, setelan suara) disimpan di `localStorage` dengan kunci `kurirSandiV1`.
+Kemajuan pemain (level terbuka, bintang, skor terbaik, setelan suara) disimpan di `localStorage` dengan kunci `secretMailV1` (kunci lama `kurirSandiV1` masih dibaca untuk migrasi).
+
+## Aset gambar
+
+Semua aset dibuat lokal oleh kode — tidak ada unduhan, tidak ada CDN, tetap 100% offline:
+
+```
+assets/tex/velvet.png     256x256  tekstur beludru gelap (mulus, diulang 1:1)
+assets/tex/golddust.png   64x64    satu bulatan debu emas lembut (RGBA)
+assets/emblem.png         320x72   ornamen art-deco emas (RGBA)
+tools/make_assets.py               pembuat ketiga aset di atas (zlib + struct, tanpa dependensi)
+```
+
+Buat ulang aset: `python3 tools/make_assets.py`
+
+Pemuatan aset ada di `js/main.js` (`IMG` + `loadAssets`), dengan batas waktu 2,5 detik: kalau
+sebuah aset gagal dimuat, lapisan itu dilewati (garis ornamen digambar prosedural) dan game
+tetap jalan. Lapisan latar judul yang statis (gradasi + pendar + tekstur) di-cache sekali per
+ukuran layar agar tidak dihitung tiap frame.

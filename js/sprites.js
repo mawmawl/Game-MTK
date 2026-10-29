@@ -1,6 +1,6 @@
 'use strict';
 /* ============================================================
-   KURIR SANDI — sprites.js  (versi detail/premium)
+   SECRET MAIL — sprites.js  (versi detail/premium)
    Seluruh pixel art digambar programatik (tanpa aset eksternal).
    Semua fungsi menggambar di koordinat dunia (ctx sudah digeser kamera).
    ============================================================ */
