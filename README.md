@@ -61,12 +61,57 @@ Game_MTK/
 │   ├── levels.js       # 3 level: peta, objek, musuh, tema, target waktu
 │   ├── enemies.js      # AI patroli/waspada/kejar + kerucut pandang
 │   ├── ui.js           # HUD, jurnal, panel mesin, panel kurir, keypad sentuh
-│   ├── scenes.js       # buildLevel + semua scene (title, intro, game, hasil, ending)
+│   ├── cinematic.js    # intro sinematik — murni fungsi waktu (dipakai juga untuk render video)
+│   ├── scenes.js       # buildLevel + semua scene (cinema, title, intro, game, hasil, ending)
 │   └── main.js         # boot, save/load, loop 60fps
+├── assets/video/       # hasil render intro (intro.mp4, intro.gif, poster)
 └── docs/
     ├── IDEA.md         # brief awal
     └── RANCANGAN.md    # rancangan lengkap
 ```
+
+## Intro sinematik (grafik gerak)
+
+Saat pertama dibuka, game menjalankan intro 12,8 detik: kota malam berhujan → amplop terbang masuk →
+segel lilin dicap → berkas rahasia dengan teks sandi yang terurai → logo **SECRET MAIL** tersusun huruf demi huruf.
+Gaya: piksel + pendar emas + scanline CRT. Bisa dilewati dengan tombol/ketukan apa pun.
+
+Seluruh animasinya satu fungsi waktu — `Cinematic.frame(t)` di `js/cinematic.js` — tanpa `Math.random()`,
+sehingga frame yang sama persis bisa dirender jadi berkas video:
+
+```bash
+python3 tools/render_intro.py                 # intro.mp4 (1280x720, BERSUARA) + intro.gif + poster
+python3 tools/render_intro.py --fps 24 --scale 3
+python3 tools/render_intro.py --preview 3.5,6.5,9.0   # beberapa PNG pratinjau saja
+python3 tools/render_intro.py --no-gif        # MP4 saja
+python3 tools/render_intro.py --no-audio      # MP4 tanpa suara
+```
+
+Suara video dirender **offline** di halaman (`OfflineAudioContext`) memakai SFX dan pola musik
+yang sama dengan game, lalu digabung ffmpeg — jadi tidak ada perekaman real-time dan hasilnya
+selalu sama. Pemeriksaan otomatis: `python3 tools/check_intro.py` (piksel per babak),
+`python3 tools/check_game_intro.py` (integrasi intro di game sungguhan), dan
+`python3 tools/check_motion.py` (audit: tiap layar wajib bergerak).
+
+## Efek gerak di gameplay
+
+| Momen | Efek |
+|---|---|
+| Ganti scene (mulai/ulangi/keluar level) | tirai piksel 16px naik bertahap dari bawah + garis emas di ujungnya (`Fade`) |
+| Tertangkap musuh | hentakan 0,16 dtk (dunia beku, partikel & kamera tetap jalan) + denyut merah di tepi layar + kilat merah |
+| Pesan berhasil diantar | hentakan 0,14 dtk + kilat emas + denyut emas di tepi layar |
+| Layar hasil | kilat emas saat panel muncul + kilau melintas di permukaan panel + bintang meletup satu per satu |
+| Jurnal dibuka | panel meluncur masuk (`L.journalA`) |
+| Panel dialog | kotak meluncur naik saat muncul + huruf diketik |
+| Mesin enkripsi | bilah progres + sandi **dicetak huruf demi huruf** dengan kursor blok berkedip (tik mesin tik) |
+| Pilih level | kartu naik satu per satu, kartu terpilih mengambang + garis emas tumbuh dari tengah |
+| Cara main | halaman meluncur masuk dari kanan + penanda halaman |
+| Brief level | bar letterbox masuk, amplop turun + miring, judul naik, kalimat meluncur tiap ganti baris |
+| Ending | judul turun huruf demi huruf, sembilan bintang meletup berurutan, paragraf memudar masuk |
+
+Diuji otomatis: `python3 tools/check_fx.py` (tirai transisi, efek tangkapan, kemenangan, layar hasil)
+dan `python3 tools/check_motion.py` (audit gerak semua layar — termasuk membuktikan sandi mesin
+benar-benar bertambah tercetak, bukan muncul sekaligus).
 
 Urutan `<script>` di `index.html` penting (engine lebih dulu, main terakhir). Semua tautan aset memakai `?v=N` — naikkan angkanya setiap kali mengubah `css`/`js` supaya browser tidak memakai cache lama.
 
@@ -79,6 +124,8 @@ Urutan `<script>` di `index.html` penting (engine lebih dulu, main terakhir). Se
 | `?debug=1` | tampilkan kotak collision (merah) & penghalang pandang (biru) |
 | `?touch=1` | paksa mode sentuh di desktop |
 | `?mute=0` | paksa suara nyala |
+| `?intro=1` | paksa putar ulang intro sinematik |
+| `?intro=0` | lewati intro (langsung menu utama) |
 
 Kemajuan pemain (level terbuka, bintang, skor terbaik, setelan suara) disimpan di `localStorage` dengan kunci `secretMailV1` (kunci lama `kurirSandiV1` masih dibaca untuk migrasi).
 

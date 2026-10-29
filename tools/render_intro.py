@@ -41,6 +41,7 @@ class CDP:
     def __init__(self, ws_url):
         self.ws = websocket.create_connection(ws_url, timeout=30, suppress_origin=True)
         self.seq = 0
+        self.events = []          # pesan tanpa "id" (event CDP) dikumpulkan di sini
 
     def call(self, method, **params):
         self.seq += 1
@@ -52,6 +53,8 @@ class CDP:
                 if "error" in msg:
                     raise RuntimeError(f"{method}: {msg['error']}")
                 return msg.get("result", {})
+            if "method" in msg:
+                self.events.append(msg)
 
     def js(self, expr):
         r = self.call("Runtime.evaluate", expression=expr, returnByValue=True, awaitPromise=True)
@@ -139,6 +142,8 @@ def main():
     ap.add_argument("--gif-fps", type=int, default=20)
     ap.add_argument("--no-gif", action="store_true")
     ap.add_argument("--no-mp4", action="store_true")
+    ap.add_argument("--no-audio", action="store_true",
+                    help="MP4 tanpa suara (bawaan: suara dirender dari SFX & musik game)")
     ap.add_argument("--preview", default="", help="daftar detik, mis. 3.4,6.2 -> PNG pratinjau saja")
     ap.add_argument("--out-dir", default=os.path.join(ROOT, "assets", "video"))
     args = ap.parse_args()
@@ -201,11 +206,27 @@ def main():
         size = f"{VW * args.scale}:{VH * args.scale}"
         if not args.no_mp4:
             mp4 = os.path.join(out_dir, "intro.mp4")
+            silent = os.path.join(work, "video-mute.mp4")
             run_ffmpeg(["ffmpeg", "-y", "-framerate", str(args.fps),
                         "-i", os.path.join(frames, "frame_%05d.png"),
                         "-vf", f"scale={size}:flags=neighbor",
                         "-c:v", "libx264", "-preset", "slow", "-crf", "16",
-                        "-pix_fmt", "yuv420p", "-movflags", "+faststart", mp4])
+                        "-pix_fmt", "yuv420p", "-movflags", "+faststart", silent])
+            if args.no_audio:
+                shutil.copyfile(silent, mp4)
+            else:
+                # audio dirender di halaman (OfflineAudioContext) memakai SFX & musik game
+                b64 = cdp.js("window.renderAudio()")
+                if not b64:
+                    raise RuntimeError("render audio gagal: renderAudio() tidak mengembalikan data")
+                wav = os.path.join(work, "intro.wav")
+                with open(wav, "wb") as fh:
+                    fh.write(base64.b64decode(b64))
+                wav_sec = (os.path.getsize(wav) - 44) / (44100 * 2 * 2)
+                run_ffmpeg(["ffmpeg", "-y", "-i", silent, "-i", wav,
+                            "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+                            "-shortest", mp4])
+                print(f"audio: {wav_sec:.1f} dtk stereo 44,1 kHz (SFX + musik dari game)")
             print("mp4  ->", mp4, f"({os.path.getsize(mp4) / 1e6:.1f} MB)")
         if not args.no_gif:
             gif = os.path.join(out_dir, "intro.gif")

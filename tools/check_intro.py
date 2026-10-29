@@ -17,13 +17,13 @@ import render_intro as ri  # noqa: E402
 
 PROBE = r"""
 (() => {
-  const VW = 640, VH = 360;
+  const VW = __W__, VH = 360;
   const gcv = document.getElementById('game'), ucv = document.getElementById('ui');
   const data = cv => cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
   const box = (d, W, x0, y0, x1, y1, test) => {
     let n = 0, minx = 1e9, maxx = -1, miny = 1e9, maxy = -1;
-    for (let y = Math.max(0, y0 | 0); y < Math.min(W === 640 ? 360 : 360, y1 | 0); y++) {
-      for (let x = Math.max(0, x0 | 0); x < Math.min(VW, x1 | 0); x++) {
+    for (let y = Math.max(0, y0 | 0); y < Math.min(360, y1 | 0); y++) {
+      for (let x = Math.max(0, x0 | 0); x < Math.min(W, x1 | 0); x++) {
         const i = (y * W + x) * 4, r = d[i], g = d[i + 1], b = d[i + 2];
         if (test(r, g, b)) { n++; if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y; }
       }
@@ -85,7 +85,7 @@ def main():
         ]
         for name, t, expect in tests:
             cdp.js(f"window.drawFrame({t})")
-            st = cdp.js(PROBE)
+            st = cdp.js(PROBE.replace("__W__", str(ri.VW)))
             st = json.loads(st) if isinstance(st, str) else st
             print(f"t={name}")
             for k, v in st.items():
@@ -106,6 +106,31 @@ def main():
                 n = st[k]["n"]
                 ok = {">": n > val, "<": n < val, ">=": n >= val, "<=": n <= val, "==": n == val}[op]
                 print(f"    HARAP {k} {want}: {'OK' if ok else 'GAGAL'} (n={n})")
+        # --- layar lebar: VW adaptif game (maks 1200) ---
+        cdp.call("Emulation.setDeviceMetricsOverride", width=1200, height=360,
+                 deviceScaleFactor=1, mobile=False)
+        time.sleep(0.8)                        # resize -> fitView() dihitung ulang
+        vw = cdp.js("VW")
+        print(f"\nt=lebar layar: VW internal = {vw}")
+        side_ok = None
+        for t, label in ((2.95, "hujan+kota sisi kanan"), (9.5, "logo tengah")):
+            cdp.js(f"window.drawFrame({t})")
+            w = cdp.js("VW")
+            raw = cdp.js(PROBE.replace("__W__", str(w)))
+            st = json.loads(raw) if isinstance(raw, str) else raw
+            if t == 2.95:
+                right = st["gameLit"]           # seluruh isi kanvas
+                print(f"    kanvas {w}px, isi lit={right['n']} x[{right['minx']}..{right['maxx']}] -> "
+                      + ("OK" if right["maxx"] > w - 20 else "GAGAL (sisi kanan kosong)"))
+                side_ok = right["maxx"] > w - 20
+            else:
+                g = st["logoGold"]
+                ctr = (g["minx"] + g["maxx"]) / 2
+                print(f"    logo emas x[{g['minx']}..{g['maxx']}] tengah={ctr:.0f} (harus ≈{w/2:.0f}) -> "
+                      + ("OK" if abs(ctr - w / 2) < 40 and g["maxx"] < w - 20 else "GAGAL"))
+                side_ok = side_ok and abs(ctr - w / 2) < 40 and g["maxx"] < w - 20
+        if not side_ok:
+            print("    HARAP tampilan layar lebar: GAGAL")
     finally:
         if cdp:
             cdp.close()

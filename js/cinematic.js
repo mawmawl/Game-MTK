@@ -45,33 +45,34 @@ const Cinematic = (() => {
   const CARD_W = 520, CARD_H = 96;
   const LOGO_Y = 168;
 
-  /* ---------- data latar yang dihitung sekali ---------- */
-  let DROPS = null, SKY = null;
-  function drops() {
-    if (DROPS) return DROPS;
+  /* ---------- data latar yang dihitung sekali ----------
+     Lebar internal game adaptif (620..1200 px), jadi hujan & siluet kota
+     dihitung ulang bila VW berubah. */
+  let DROPS = null, SKY = null, DATA_W = 0;
+  function ensureData() {
+    if (DROPS && DATA_W === VW) return;
+    DATA_W = VW;
     DROPS = [];
     for (let i = 0; i < 96; i++) {
       DROPS.push({
-        x: hash2(i, 1) * 720 - 20,
+        x: hash2(i, 1) * (VW + 40) - 20,
         y0: hash2(i, 2) * 420,
         sp: 300 + hash2(i, 5) * 260,
         len: 7 + hash2(i, 9) * 11
       });
     }
-    return DROPS;
-  }
-  function skyline() {
-    if (SKY) return SKY;
+    const n = Math.max(24, Math.round((VW + 60) / 26));   // jumlah gedung ikut lebar
     SKY = [];
     let x = -24;
-    while (x < 680) {
+    for (let i = 0; i < n; i++) {
       const w = 20 + Math.floor(hash2(x, 3) * 34);
       const h = 24 + Math.floor(hash2(x, 7) * 58);
       SKY.push({ x, w, h, seed: x });
       x += w + 3 + Math.floor(hash2(x, 11) * 12);
     }
-    return SKY;
   }
+  function drops() { ensureData(); return DROPS; }
+  function skyline() { ensureData(); return SKY; }
 
   /* ---------- util ---------- */
   const fade = (t, a, b) => clamp((t - a) / (b - a), 0, 1);

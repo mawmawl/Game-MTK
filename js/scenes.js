@@ -63,8 +63,9 @@ function buildLevel(idx) {
     courier: { x: (def.courier.x + .5) * TILE, y: (def.courier.y + 1) * TILE, alpha: 1 },
     enemies: def.enemies.map(e => new Enemy(e)),
     timer: 0, catches: 0, immunity: 1.2, flash: null, t: 0,
+    hitstop: 0, pulse: null,                       // hentakan & denyut tepi layar (efek "kena")
     dialog: null,
-    machine: { open: false, phase: 'input', fa: '', fb: '', focus: 'a', msg: null, workT: 0, resultText: '' },
+    machine: { open: false, phase: 'input', fa: '', fb: '', focus: 'a', msg: null, workT: 0, resultText: '', revT: 0 },
     courierUI: { open: false, value: '', msg: null, shakeT: 0 },
     journal: false, journalA: 0, pause: null, courierLeaving: null, resultsGiven: false
   };
@@ -78,11 +79,12 @@ function buildLevel(idx) {
    DIALOG
    ============================================================ */
 function openDialog(name, text, onDone, accent) {
-  L.dialog = { name, text, shown: '', chars: 0, done: false, onDone: onDone || null, accent };
+  L.dialog = { name, text, shown: '', chars: 0, done: false, onDone: onDone || null, accent, age: 0 };
   SFX.paper();
 }
 function updateDialog(dt) {
   const d = L.dialog;
+  d.age += dt;                                   // untuk animasi panel meluncur masuk
   d.chars = Math.min(d.text.length, d.chars + dt * 48);
   d.shown = d.text.slice(0, Math.round(d.chars));
   d.done = d.chars >= d.text.length;
@@ -188,6 +190,7 @@ function finishMachine(M) {
   L.found.enc = true;
   M.phase = 'result';
   M.resultText = L.encrypted;
+  M.revT = 0;                                   // sandi "dicetak" huruf demi huruf
   SFX.chime();
   const cx = (L.def.objects.find(o => o.type === 'machine').x + 1) * TILE;
   const cy = L.def.objects.find(o => o.type === 'machine').y * TILE;
@@ -203,6 +206,9 @@ function updateMachine(dt) {
     return;
   }
   if (M.phase === 'result') {
+    M.revT += dt;
+    // tik mesin tik selagi sandi dicetak
+    if (M.revT < M.resultText.length * 0.045 + 0.1 && Math.random() < dt * 26) SFX.type();
     if (Input.press('Escape', 'e', 'E', 'Enter')) { M.open = false; SFX.uiBack(); }
     return;
   }
@@ -232,6 +238,9 @@ function submitCourier(C) {
     C.open = false;
     L.delivered = true;
     L.courierLeaving = { t: 0 };
+    L.flash = { t: 0.7, c: '255,232,170' };            // kilat emas
+    L.pulse = { t: 0.9, t0: 0.9, c: '255,214,120' };   // denyut tepi emas
+    L.hitstop = 0.14;                                  // hentakan kecil sebelum kurir berangkat
     SFX.door(); SFX.fanfare();
     Particles.text(L.courier.x, L.courier.y - 34, 'PESAN AMAN!', '#7ae68a');
     Particles.burst(L.courier.x, L.courier.y - 16, { n: 26, c: ['#ffe28a', '#7ae68a', '#fff6d8'], sp: 90, life: 1 });
@@ -285,6 +294,7 @@ function updateGame(dt) {
   L.t += dt;
   if (L.immunity > 0) L.immunity -= dt;
   if (L.flash) { L.flash.t -= dt; if (L.flash.t <= 0) L.flash = null; }
+  if (L.pulse) { L.pulse.t -= dt; if (L.pulse.t <= 0) L.pulse = null; }
   L.journalA = Math.min(1, L.journalA + dt * 8);
 
   if (L.dialog) { updateDialog(dt); }
@@ -296,6 +306,14 @@ function updateGame(dt) {
   else if (L.pause) { updatePause(dt); }
   else {
     /* ---------- dunia aktif ---------- */
+    /* hentakan (hitstop): dunia beku sesaat supaya tangkapan/kemenangan terasa
+       "kena" — partikel & kamera tetap jalan agar hentakan terlihat hidup */
+    if (L.hitstop > 0) {
+      L.hitstop -= dt;
+      Particles.update(dt);
+      Camera.follow(L.player.x + 8, L.player.y + 6, L.roomW, L.roomH, dt);
+      return;
+    }
     checkMute();
     L.timer += dt;
     const p = L.player;
@@ -592,6 +610,17 @@ function renderGame() {
   // kilat tertangkap
   if (L.flash) {
     ctx.fillStyle = 'rgba(' + L.flash.c + ',' + (L.flash.t / .6 * .4).toFixed(3) + ')';
+    ctx.fillRect(0, 0, VW, VH);
+  }
+
+  // denyut tepi layar: tertangkap = merah, pesan berhasil diantar = emas
+  if (L.pulse) {
+    const k = clamp(L.pulse.t / (L.pulse.t0 || 0.75), 0, 1);
+    const a = Math.sin((1 - k) * Math.PI) * 0.55;
+    const pg = ctx.createRadialGradient(VW / 2, VH / 2, VH * 0.30, VW / 2, VH / 2, VH * 0.95);
+    pg.addColorStop(0, 'rgba(' + L.pulse.c + ',0)');
+    pg.addColorStop(1, 'rgba(' + L.pulse.c + ',' + a.toFixed(3) + ')');
+    ctx.fillStyle = pg;
     ctx.fillRect(0, 0, VW, VH);
   }
 
@@ -1114,6 +1143,7 @@ const Scenes = {
         const d = Scenes.data;
         checkMute();
         d.idx = d.idx ?? 0;
+        d.t = (d.t || 0) + dt;                    // untuk animasi kartu masuk
         if (d.idx > 2 || d.idx < 0) d.idx = Math.min(G.save.unlocked, 3) - 1;
         if (Input.press('ArrowLeft', 'a', 'A')) { d.idx = (d.idx + 2) % 3; SFX.uiMove(); }
         if (Input.press('ArrowRight', 'd', 'D')) { d.idx = (d.idx + 1) % 3; SFX.uiMove(); }
@@ -1133,13 +1163,23 @@ const Scenes = {
         const subs = ['Malam Pertama', 'Koridor yang Diawasi', 'Misi Terakhir'];
         const cols = ['#b0785a', '#7fa8c9', '#3ee6d8'];
         for (let i = 0; i < 3; i++) {
-          const x = VW / 2 - 270 + i * 180, y = 84, w = 160, h = 190;
+          // kartu naik satu per satu saat layar dibuka
+          const tp = Scenes.data.t || 1;
+          const enter = easeOutCubic(clamp((tp - i * 0.07) / 0.34, 0, 1));
+          const focused0 = Scenes.data.idx === i;
+          const bob = focused0 && enter >= 1 ? Math.sin(performance.now() / 420) * 2 : 0;
+          const x = VW / 2 - 270 + i * 180, y = 84 + (1 - enter) * 36 + bob, w = 160, h = 190;
           const unlocked = i < G.save.unlocked;
           const focused = Scenes.data.idx === i;
           R(x + 4, y + 6, w, h, 'rgba(0,0,0,0.5)');
           R(x, y, w, h, unlocked ? '#181430' : '#12101f');
           O(x, y, w, h, focused ? '#ffd75e' : '#3a2f66');
           R(x, y, w, 3, cols[i]);
+          // garis emas kartu terpilih: tumbuh dari tengah
+          if (focused) {
+            const fw = Math.round(w * easeOutCubic(clamp((tp - 0.3) / 0.45, 0, 1)));
+            R(x + (w - fw) / 2, y + 2, fw, 3, '#ffd75e');
+          }
           txt('LEVEL ' + (i + 1), x + w / 2, y + 26, { font: FONT_PS(8), color: cols[i], align: 'center' });
           txt(names[i], x + w / 2, y + 48, { font: FONT_PS(10), color: unlocked ? '#fff' : '#5a5488', align: 'center' });
           txt(subs[i], x + w / 2, y + 68, { font: FONT_VT(15), color: '#8a84b8', align: 'center' });
@@ -1168,10 +1208,12 @@ const Scenes = {
       update(dt) {
         const d = Scenes.data;
         checkMute();
+        d.page = d.page || 0;
+        d.pageT = (d.pageT || 0) + dt;             // untuk animasi halaman masuk
         if (Input.press('ArrowRight', 'd', 'D', 'Enter', 'e', 'E', ' ') || Input.mouse.clicked) {
-          if (d.page < 2) { d.page++; SFX.uiMove(); } else { Scenes.go('title'); SFX.uiBack(); }
+          if (d.page < 2) { d.page++; d.pageT = 0; SFX.uiMove(); } else { Scenes.go('title'); SFX.uiBack(); }
         }
-        if (Input.press('ArrowLeft', 'a', 'A')) { if (d.page > 0) { d.page--; SFX.uiMove(); } }
+        if (Input.press('ArrowLeft', 'a', 'A')) { if (d.page > 0) { d.page--; d.pageT = 0; SFX.uiMove(); } }
         if (Input.press('Escape')) { Scenes.go('title'); SFX.uiBack(); }
       },
       render() {
@@ -1223,8 +1265,16 @@ const Scenes = {
         const lines = pages[d.page];
         // jarak baris menyesuaikan jumlah baris agar tidak menabrak keterangan halaman
         const lh = lines.length > 11 ? 18 : (lines.length > 9 ? 20 : 22);
-        lines.forEach((ln, i) => txt(ln, VW / 2 - 224, 92 + i * lh, { font: FONT_VT(17), color: '#e8e4ff' }));
-        txt('halaman ' + (d.page + 1) + '/3   •  → lanjut  ESC kembali', VW / 2, 304, { font: FONT_VT(14), color: '#8a84b8', align: 'center' });
+        // halaman meluncur masuk dari kanan
+        const pp = easeOutCubic(clamp((d.pageT || 1) / 0.26, 0, 1));
+        lines.forEach((ln, i) => txt(ln, VW / 2 - 224 + (1 - pp) * 26, 92 + i * lh,
+          { font: FONT_VT(17), color: '#e8e4ff', alpha: 0.12 + 0.88 * pp }));
+        txt('halaman ' + (d.page + 1) + '/3   •  → lanjut  ESC kembali', VW / 2, 304, { font: FONT_VT(14), color: '#8a84b8', align: 'center', alpha: 0.3 + 0.7 * pp });
+        // penanda halaman: tiga wajik, yang aktif menyala & memanjang
+        for (let i = 0; i < 3; i++) {
+          const on = i === d.page;
+          R(VW / 2 - 24 + i * 16, 288, on ? 12 : 4, 2, on ? '#ffd75e' : 'rgba(138,132,184,0.5)');
+        }
             }
     },
 
@@ -1232,12 +1282,14 @@ const Scenes = {
     intro: {
       update(dt) {
         const d = Scenes.data;
-        if (d.li === undefined) { d.li = 0; d.chars = 0; Music.set(null); }
+        if (d.li === undefined) { d.li = 0; d.chars = 0; d.t = 0; d.liT = 0; Music.set(null); }
+        d.t += dt;                                  // untuk animasi masuk (bar & judul)
+        d.liT += dt;
         const lines = LEVELS[d.level].intro;
         d.chars += dt * 46;
         if (Input.press('Enter', 'e', 'E', ' ') || Input.mouse.clicked) {
           if (d.chars < lines[d.li].length) d.chars = lines[d.li].length;
-          else if (d.li < lines.length - 1) { d.li++; d.chars = 0; SFX.uiMove(); }
+          else if (d.li < lines.length - 1) { d.li++; d.chars = 0; d.liT = 0; SFX.uiMove(); }
           else { SFX.uiSelect(); Scenes.go('game', { level: d.level }); }
         }
         if (Input.press('Escape')) { SFX.uiSelect(); Scenes.go('game', { level: d.level }); }
@@ -1249,22 +1301,37 @@ const Scenes = {
         g.addColorStop(0, th.wallCap); g.addColorStop(1, th.floorA);
         ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
         ctx.fillStyle = 'rgba(8,6,18,0.45)'; ctx.fillRect(0, 0, VW, VH);
-        // amplop besar
+        // amplop besar: turun + miring pelan saat masuk
+        const ep = easeOutCubic(clamp((d.t || 0) / 0.5, 0, 1));
         ctx.save();
-        ctx.translate(VW / 2, 84);
+        ctx.globalAlpha = ep;
+        ctx.translate(VW / 2, 84 - (1 - ep) * 30);
         ctx.rotate(Math.sin(performance.now() / 900) * .06);
         R(-34, -24, 68, 48, '#f0e6d0'); O(-34, -24, 68, 48, '#8a7a5a');
         ctx.strokeStyle = '#8a7a5a';
         ctx.beginPath(); ctx.moveTo(-34, -24); ctx.lineTo(0, 6); ctx.lineTo(34, -24); ctx.stroke();
         iconLock(-9, -6, '#c8503e');
         ctx.restore();
-        txt('LEVEL ' + (d.level + 1), VW / 2, 150, { font: FONT_PS(10), color: th.accentLight || '#ffd75e', align: 'center' });
-        txt(def.name.toUpperCase(), VW / 2, 178, { font: FONT_PS(22), color: '#fff', align: 'center', shadow: 'rgba(0,0,0,.8)' });
-        txt('“ ' + def.subtitle + ' ”', VW / 2, 202, { font: FONT_VT(19), color: '#c8c2e8', align: 'center' });
+        // judul level & subjudul: naik sedikit sambil memudar masuk
+        const tp = easeOutCubic(clamp(((d.t || 0) - 0.12) / 0.42, 0, 1));
+        const ty = (1 - tp) * 14;
+        txt('LEVEL ' + (d.level + 1), VW / 2, 150 + ty, { font: FONT_PS(10), color: th.accentLight || '#ffd75e', align: 'center', alpha: tp });
+        txt(def.name.toUpperCase(), VW / 2, 178 + ty, { font: FONT_PS(22), color: '#fff', align: 'center', shadow: 'rgba(0,0,0,.8)', alpha: tp });
+        txt('“ ' + def.subtitle + ' ”', VW / 2, 202 + ty, { font: FONT_VT(19), color: '#c8c2e8', align: 'center', alpha: tp });
+        // kalimat brief: meluncur naik tiap kali ganti baris
+        const lp = easeOutCubic(clamp((d.liT || 0) / 0.3, 0, 1));
         const line = def.intro[d.li] || '';
         const shown = line.slice(0, Math.floor(d.chars));
         wrap(shown, FONT_VT(20), 480).forEach((ln, i) =>
-          txt(ln, VW / 2, 244 + i * 24, { font: FONT_VT(20), color: '#f0ecff', align: 'center' }));
+          txt(ln, VW / 2, 244 + i * 24 + (1 - lp) * 10, { font: FONT_VT(20), color: '#f0ecff', align: 'center', alpha: 0.2 + 0.8 * lp }));
+        // bar layar lebar (letterbox) masuk dari tepi
+        const barH = Math.round(30 * tp);
+        if (barH > 0) {
+          R(0, 0, VW, barH, '#08070f');
+          R(0, VH - barH, VW, barH, '#08070f');
+          R(0, barH, VW, 1, 'rgba(232,192,74,0.35)');
+          R(0, VH - barH - 1, VW, 1, 'rgba(232,192,74,0.35)');
+        }
         const a = (performance.now() / 400 % 1) < .5 ? 1 : .3;
         txt('ENTER ▸', VW - 60, VH - 20, { font: FONT_PS(7), color: '#ffd75e', align: 'right', alpha: a });
             }
@@ -1306,9 +1373,25 @@ const Scenes = {
         renderGame(); // latar level beku
         ctx.fillStyle = 'rgba(6,5,14,0.78)';
         ctx.fillRect(0, 0, VW, VH);
+        // kilat emas saat panel muncul
+        if (d.rT < 0.3) {
+          ctx.fillStyle = 'rgba(255,240,200,' + (0.45 * (1 - d.rT / 0.3)).toFixed(3) + ')';
+          ctx.fillRect(0, 0, VW, VH);
+        }
         UI.begin();
         const w = 430, h = 264, x = VW / 2 - w / 2, y = 44;
         panel(x, y, w, h, { title: 'LEVEL SELESAI!', accent: '#7ae68a', bg: '#141a2c' });
+        // kilau melintas di permukaan panel
+        const sweep = clamp((d.rT - 0.12) / 0.5, 0, 1);
+        if (sweep < 1) {
+          const sy = y + sweep * (h + 40) - 20;
+          const sg = uictx.createLinearGradient(0, sy - 16, 0, sy + 16);
+          sg.addColorStop(0, 'rgba(255,236,190,0)');
+          sg.addColorStop(0.5, 'rgba(255,236,190,0.16)');
+          sg.addColorStop(1, 'rgba(255,236,190,0)');
+          uictx.fillStyle = sg;
+          uictx.fillRect(x, sy - 16, w, 32);
+        }
         txt(LEVELS[d.level].name.toUpperCase(), x + w / 2, y + 46, { font: FONT_PS(10), color: '#a8c8d8', align: 'center' });
         // bintang
         for (let i = 0; i < 3; i++) {
@@ -1343,7 +1426,12 @@ const Scenes = {
     /* ---------- ENDING ---------- */
     ending: {
       update(dt) {
-        if (Input.press('Enter', 'e', 'E', ' ', 'Escape') || Input.mouse.clicked) { SFX.uiSelect(); Scenes.go('title'); }
+        const d = Scenes.data;
+        d.t = (d.t || 0) + dt;
+        // beri waktu animasi masuk tampil dulu sebelum bisa ditutup
+        if (d.t > 1.6 && (Input.press('Enter', 'e', 'E', ' ', 'Escape') || Input.mouse.clicked)) {
+          SFX.uiSelect(); Scenes.go('title');
+        }
       },
       render() {
         const t = performance.now() / 1000;
@@ -1361,13 +1449,49 @@ const Scenes = {
         ctx.strokeStyle = '#8a7a5a';
         ctx.beginPath(); ctx.moveTo(ex - 14, ey - 10); ctx.lineTo(ex, ey + 3); ctx.lineTo(ex + 14, ey - 10); ctx.stroke();
         CIR(VW - 90, 90, 26, '#f0ead8'); CIR(VW - 97, 84, 5, '#d8d0bc'); CIR(VW - 80, 98, 4, '#d8d0bc');
-        txt('MISI SELESAI!', VW / 2, 180, { font: FONT_PS(20), color: '#ffd75e', align: 'center', shadow: 'rgba(0,0,0,.8)' });
+        // judul: huruf turun satu per satu (ember gold)
+        const et = Scenes.data.t || 0;
+        {
+          const text = 'MISI SELESAI!', size = 20, sp = 3, g = uictx;
+          g.save();
+          g.font = FONT_PS(size);
+          g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+          const adv = [];
+          let wid = 0;
+          for (const ch of text) { const w = g.measureText(ch).width; adv.push(w); wid += w + sp; }
+          wid -= sp;
+          let x = Math.round(VW / 2 - wid / 2);
+          for (let i = 0; i < text.length; i++) {
+            const p = clamp((et - 0.15 - i * 0.045) / 0.3, 0, 1);
+            if (p > 0) {
+              const e = easeOutBack(p);
+              const yy = 180 + (1 - e) * -16;
+              g.globalAlpha = Math.min(1, p * 1.5);
+              g.fillStyle = 'rgba(0,0,0,0.7)';
+              g.fillText(text[i], x + 1, yy + 2);
+              g.fillStyle = '#ffd75e';
+              g.fillText(text[i], x, yy);
+              g.globalAlpha = 1;
+            }
+            x += adv[i] + sp;
+          }
+          g.restore();
+        }
         let total = 0;
         for (let i = 1; i <= 3; i++) total += (G.save.best['lv' + i] || { stars: 0 }).stars;
-        drawStarRow(VW / 2 - 46, 214, total, 9, 5);
-        txt('bintang terkumpul: ' + total + ' / 9', VW / 2, 238, { font: FONT_VT(17), color: '#c8c2e8', align: 'center' });
-        wrap('Kau telah membuktikan satu hal penting: pesan aman bukan karena jalannya tersembunyi, tetapi karena isinya terkunci — dan hanya penerima yang tepat yang memegang kuncinya.', FONT_VT(19), 460).forEach((ln, i) =>
-          txt(ln, VW / 2, 262 + i * 22, { font: FONT_VT(19), color: '#f0ecff', align: 'center' }));
+        // bintang meletup satu per satu
+        for (let i = 0; i < 9; i++) {
+          const p = clamp((et - 0.55 - i * 0.07) / 0.28, 0, 1);
+          if (p <= 0) continue;
+          const full = i < total;
+          const r = easeOutBack(p) * (full ? 5 : 3);
+          if (r > 0) drawStar(VW / 2 - 46 + i * 18, 214, r, full ? '#ffd75e' : 'rgba(255,255,255,0.15)');
+        }
+        txt('bintang terkumpul: ' + total + ' / 9', VW / 2, 238, { font: FONT_VT(17), color: '#c8c2e8', align: 'center', alpha: clamp((et - 1.25) / 0.4, 0, 1) });
+        wrap('Kau telah membuktikan satu hal penting: pesan aman bukan karena jalannya tersembunyi, tetapi karena isinya terkunci — dan hanya penerima yang tepat yang memegang kuncinya.', FONT_VT(19), 460).forEach((ln, i) => {
+          const p = clamp((et - 1.45 - i * 0.14) / 0.4, 0, 1);
+          txt(ln, VW / 2, 262 + i * 22, { font: FONT_VT(19), color: '#f0ecff', align: 'center', alpha: p });
+        });
         txt('SECRET MAIL • dibuat dengan piksel & matematika', VW / 2, VH - 24, { font: FONT_VT(15), color: '#8a84b8', align: 'center' });
         txt('ENTER ▸ menu utama', VW - 40, VH - 8, { font: FONT_PS(7), color: '#ffd75e', align: 'right', alpha: (performance.now() / 400 % 1) < .5 ? 1 : .3 });
             }

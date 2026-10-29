@@ -168,11 +168,13 @@ class Enemy {
   }
 }
 
-/* pemain tertangkap: kilat, kembali ke titik awal, catat */
+/* pemain tertangkap: hentakan + denyut merah, kembali ke titik awal, catat */
 function onPlayerCaught(enemy, L) {
   L.catches++;
   L.immunity = 2.6;
   L.flash = { t: 0.6, c: '255,60,60' };
+  L.pulse = { t: 0.75, t0: 0.75, c: '255,70,60' };   // denyut tepi layar
+  L.hitstop = 0.16;                        // dunia beku sesaat -> tangkapan terasa "kena"
   SFX.caught();
   Camera.shake(5, 0.5);
   Particles.burst(L.player.x + 8, L.player.y + 6, { n: 16, c: ['#ff6a5a', '#ffd0c0', '#8a2020'], sp: 90, life: .7 });

@@ -477,8 +477,8 @@ function wrap(str, font, maxW) {
 
 /* ---------------- Fade transisi ---------------- */
 const Fade = {
-  a: 0, dir: 0, cb: null, speed: 2.6,
-  start(cb) { if (this.dir === 0) { this.dir = 1; this.cb = cb; } },
+  a: 0, dir: 0, cb: null, speed: 2.6, seq: 0,
+  start(cb) { if (this.dir === 0) { this.dir = 1; this.cb = cb; this.seq++; } },
   update(dt) {
     if (this.dir === 1) {
       this.a += dt * this.speed;
@@ -488,13 +488,30 @@ const Fade = {
       if (this.a <= 0) { this.a = 0; this.dir = 0; }
     }
   },
+  /* tirai piksel: kolom-kolom 16px naik dari bawah dengan tinggi bertahap
+     (pola dikunci oleh nomor transisi supaya tiap transisi terasa berbeda,
+     tapi tetap bisa diulang) */
   draw() {
-    if (this.a > 0) {
-      ctx.fillStyle = 'rgba(6,5,14,' + this.a.toFixed(3) + ')';
-      ctx.fillRect(0, 0, VW, VH);
-      uictx.fillStyle = 'rgba(6,5,14,' + this.a.toFixed(3) + ')';
-      uictx.fillRect(0, 0, VW, VH);
+    const a = this.a;
+    if (a <= 0) return;
+    ctx.fillStyle = 'rgba(6,5,14,' + (a * 0.86).toFixed(3) + ')';
+    ctx.fillRect(0, 0, VW, VH);
+    const CW = 16, n = Math.ceil(VW / CW);
+    for (let i = 0; i < n; i++) {
+      const jit = hash2(i * 7 + this.seq * 31, this.seq * 13) * 0.38;
+      const p = clamp((a - jit) / (1 - jit + 1e-6), 0, 1);
+      const h = Math.round(p * VH);
+      if (h <= 0) continue;
+      const x = i * CW;
+      ctx.fillStyle = '#080614';
+      ctx.fillRect(x, VH - h, CW, h);
+      ctx.fillStyle = '#0e0b20';
+      ctx.fillRect(x, VH - h, CW, Math.min(5, h));
+      ctx.fillStyle = 'rgba(232,192,74,' + (0.75 * p).toFixed(2) + ')';
+      ctx.fillRect(x, VH - h, CW - 2, 1);
     }
+    uictx.fillStyle = 'rgba(6,5,14,' + (a * 0.86).toFixed(3) + ')';
+    uictx.fillRect(0, 0, VW, VH);
   }
 };
 

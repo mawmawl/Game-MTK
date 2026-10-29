@@ -23,11 +23,78 @@
 <script src="../js/ui.js"></script>
 <script src="../js/cinematic.js"></script>
 <script>
+/* Perender video memanggil window.drawFrame(t) untuk tiap frame.
+   Tidak ada game loop di sini supaya frame benar-benar ditentukan waktu. */
 window.drawFrame = t => Cinematic.frame(t);
 window.CINEMA_DUR = Cinematic.DUR;
 window.assetsReady = false;
 window.__err = null;
 addEventListener('error', e => { window.__err = (e && e.message) || 'error tak dikenal'; });
+
+/* Audio intro dirender offline (OfflineAudioContext) memakai SFX & pola musik
+   yang sama dengan game, lalu dikembalikan sebagai WAV base64 — supaya video
+   yang dihasilkan punya suara tanpa harus merekam real-time.
+   Snd menyusun jadwal dari ctx.currentTime (selalu 0 di konteks offline),
+   jadi waktu tiap babak ditambahkan lewat offset di pembungkus di bawah. */
+window.renderAudio = async () => {
+  const sr = 44100;
+  const dur = Cinematic.DUR + 0.25;
+  const off = new OfflineAudioContext(2, Math.ceil(dur * sr), sr);
+  const master = off.createGain();
+  master.gain.value = 0.55;
+  master.connect(off.destination);
+  const realCtx = Snd.ctx, realMaster = Snd.master, realMuted = Snd.muted;
+  Snd.ctx = off; Snd.master = master; Snd.muted = false;
+  const tone0 = Snd.tone, noise0 = Snd.noise;
+  let offset = 0;
+  Snd.tone = (f, o = {}) => tone0.call(Snd, f, Object.assign({}, o, { when: (o.when || 0) + offset }));
+  Snd.noise = (d = .15, v = .06, when = 0) => noise0.call(Snd, d, v, when + offset);
+  try {
+    // musik: pola Musik.defs.intro dijadwalkan penuh sepanjang intro
+    const pat = Music.defs.intro;
+    if (pat) {
+      offset = 0;
+      for (let k = 0; k * pat.dur < Cinematic.DUR; k++) {
+        const when = k * pat.dur;
+        const n = pat.notes[k % pat.notes.length];
+        Snd.tone(pat.base * Math.pow(2, n / 12), { d: pat.dur * .85, type: pat.type, v: pat.v, when });
+        if (k % 4 === 0) Snd.tone(pat.base / 2, { d: pat.dur * 1.7, type: 'sine', v: pat.v * 1.5, when });
+      }
+    }
+    // SFX tiap babak, tepat pada waktunya
+    Cinematic.beats.forEach(b => { offset = b.t; b.f(); });
+  } finally {
+    Snd.tone = tone0;
+    Snd.noise = noise0;
+  }
+  const buf = await off.startRendering();
+  Snd.ctx = realCtx; Snd.master = realMaster; Snd.muted = realMuted;
+
+  // tulis WAV 16-bit PCM
+  const ch = buf.numberOfChannels, len = buf.length, bytes = 44 + len * ch * 2;
+  const ab = new ArrayBuffer(bytes), dv = new DataView(ab);
+  const wr = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+  wr(0, 'RIFF'); dv.setUint32(4, bytes - 8, true); wr(8, 'WAVE'); wr(12, 'fmt ');
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, ch, true);
+  dv.setUint32(24, sr, true); dv.setUint32(28, sr * ch * 2, true);
+  dv.setUint16(32, ch * 2, true); dv.setUint16(34, 16, true);
+  wr(36, 'data'); dv.setUint32(40, len * ch * 2, true);
+  const chans = [];
+  for (let c = 0; c < ch; c++) chans.push(buf.getChannelData(c));
+  let o = 44;
+  for (let i = 0; i < len; i++) {
+    for (let c = 0; c < ch; c++) {
+      const v = Math.max(-1, Math.min(1, chans[c][i]));
+      dv.setInt16(o, v < 0 ? v * 0x8000 : v * 0x7FFF, true);
+      o += 2;
+    }
+  }
+  const u8 = new Uint8Array(ab);
+  let bin = '';
+  for (let i = 0; i < u8.length; i += 8192) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+  return btoa(bin);
+};
+
 /* font pixel wajib sudah siap sebelum frame pertama direkam */
 const mark = () => { window.assetsReady = true; };
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(mark);

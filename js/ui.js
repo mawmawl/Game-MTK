@@ -218,7 +218,10 @@ function drawArrowHint(wx, wy, t, label) {
 
 /* ---------- Dialog ---------- */
 function drawDialogBox(d) {
-  const x = 40, w = VW - 80, h = 78, y = VH - h - 14;
+  const x = 40, w = VW - 80, h = 78;
+  // panel meluncur naik saat baru muncul (age diisi di updateDialog)
+  const slide = easeOutCubic(clamp((d.age ?? 1) / 0.16, 0, 1));
+  const y = VH - h - 14 + (1 - slide) * 20;
   panel(x, y, w, h, { accent: d.accent || '#e8c04a', close: () => { L.dialog = null; SFX.uiBack(); } });
   if (d.name) {
     R(x + 14, y - 9, ctx.measureText(d.name).width + 26, 0, 'transparent');
@@ -350,10 +353,36 @@ function drawMachineUI(M) {
     const boxH = 18 + lines.length * (fsz + 4);
     R(x + 30, cy, w - 60, boxH, '#0d2a1c');
     O(x + 30, cy, w - 60, boxH, '#2a6a4a');
-    lines.forEach((ln, i) =>
-      txt(ln, x + w / 2, cy + 18 + i * (fsz + 4), { font: FONT_VT(fsz), color: '#7ae68a', align: 'center' }));
+    // sandi "dicetak" huruf demi huruf oleh mesin (revT dari updateMachine)
+    const total = lines.reduce((s, l) => s + l.length, 0);
+    const shown = Math.min(total, Math.floor((M.revT || 0) / 0.045));
+    uictx.save();
+    uictx.font = FONT_VT(fsz);
+    uictx.textAlign = 'left';
+    uictx.textBaseline = 'alphabetic';
+    let gi = 0, curX = 0, curY = 0;
+    lines.forEach((ln, i) => {
+      const ly = cy + 18 + i * (fsz + 4);
+      let lx = x + w / 2 - uictx.measureText(ln).width / 2;
+      for (const ch of ln) {
+        const cw = uictx.measureText(ch).width;
+        if (gi < shown) {
+          uictx.fillStyle = '#7ae68a';
+          uictx.fillText(ch, lx, ly);
+        }
+        if (gi === shown - 1) { curX = lx + cw; curY = ly; }
+        lx += cw;
+        gi++;
+      }
+    });
+    // kursor blok berkedip selama masih mencetak
+    if (shown < total && (performance.now() / 220 % 1) < 0.6) {
+      uictx.fillStyle = '#d8ffe8';
+      uictx.fillRect(Math.round(curX), curY - fsz + 3, Math.max(2, Math.round(fsz * 0.35)), fsz - 3);
+    }
+    uictx.restore();
     cy += boxH + 16;
-    txt('\u2714 TERSIMPAN DI JURNAL [TAB]', x + w / 2, cy, { font: FONT_PS(8), color: '#ffe9a8', align: 'center' });
+    txt('\u2714 TERSIMPAN DI JURNAL [TAB]', x + w / 2, cy, { font: FONT_PS(8), color: shown >= total ? '#ffe9a8' : 'rgba(255,233,168,0.35)', align: 'center' });
     cy += 12;
     // tombol salin di tengah, teks berikutnya di bawahnya (tidak saling menimpa)
     button(x + w / 2 - 70, cy, 140, 26, copiedRecently() ? '\u2713 TERSALIN' : 'SALIN TEKS', () => copyText(M.resultText), { size: 7 });
