@@ -2,3 +2,11 @@
 __pycache__/
 *.pyc
 *.log
+
+# Keluaran demo/QA dari tools/ (render video, tangkapan layar, overlay uji).
+# Animasi pembuka game sendiri ada di js/cinematic.js, dan hasil render resminya
+# (intro.mp4 / intro.gif / intro_poster.png) tetap disimpan.
+assets/video/*
+!assets/video/intro.mp4
+!assets/video/intro.gif
+!assets/video/intro_poster.png
