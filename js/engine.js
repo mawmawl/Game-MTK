@@ -35,7 +35,7 @@ function fitView() {
   uiCanvas.width = Math.max(1, Math.round(VW * s));
   uiCanvas.height = Math.max(1, Math.round(VH * s));
 }
-window.addEventListener('resize', fitView);
+window.addEventListener('resize', () => { fitView(); Camera.setZoom(TOUCH ? 1.5 : 1); });
 fitView();
 
 /* bersihkan kanvas UI di awal tiap frame (transform = skala tampilan) */
@@ -199,16 +199,35 @@ Input.init();
 /* ---------------- Kamera ---------------- */
 const Camera = {
   x: 0, y: 0, ox: 0, oy: 0, shakeT: 0, shakeA: 0,
-  /* ruangan yang lebih sempit dari layar diletakkan di tengah
-     (bukan menempel kiri) supaya latar terlihat penuh */
+  /* Di HP dunia diperbesar (zoom) supaya karakter tidak mungil. Pandangan
+     memakai ukuran VW/zoom, jadi ruangan jadi lebih besar dari pandangan
+     dan kamera benar-benar mengikuti pemain (dulu ruangan 768 px < layar
+     780 px sehingga kamera terkunci di tengah).
+     bias 0.52 = pemain sedikit di bawah tengah supaya tidak terlihat
+     "kamera terlalu tinggi". */
+  zoom: 1, bias: 0.52,
+  setZoom(z) { this.zoom = Math.max(1, Math.min(2.2, z)); },
+  vw() { return VW / this.zoom; },
+  vh() { return VH / this.zoom; },
+  /* proyeksi koordinat dunia -> layar (ikut zoom) */
+  sx(wx) { return (wx - this.x - this.ox) * this.zoom; },
+  sy(wy) { return (wy - this.y - this.oy) * this.zoom; },
+  target(tx, ty, rw, rh) {
+    const vw = this.vw(), vh = this.vh();
+    return [
+      rw <= vw ? (rw - vw) / 2 : Math.min(Math.max(tx - vw / 2, 0), rw - vw),
+      rh <= vh ? (rh - vh) / 2 : Math.min(Math.max(ty - vh * this.bias, 0), rh - vh)
+    ];
+  },
+  /* ruangan yang lebih sempit dari pandangan diletakkan di tengah */
   snap(tx, ty, rw, rh) {
-    this.x = rw <= VW ? (rw - VW) / 2 : Math.min(Math.max(tx - VW / 2, 0), rw - VW);
-    this.y = rh <= VH ? (rh - VH) / 2 : Math.min(Math.max(ty - VH / 2, 0), rh - VH);
+    const a = this.target(tx, ty, rw, rh);
+    this.x = a[0]; this.y = a[1];
   },
   follow(tx, ty, rw, rh, dt) {
     const k = 1 - Math.exp(-dt * 7);
-    const ax = rw <= VW ? (rw - VW) / 2 : Math.min(Math.max(tx - VW / 2, 0), rw - VW);
-    const ay = rh <= VH ? (rh - VH) / 2 : Math.min(Math.max(ty - VH / 2, 0), rh - VH);
+    const a = this.target(tx, ty, rw, rh);
+    const ax = a[0], ay = a[1];
     this.x = lerp(this.x, ax, k);
     this.y = lerp(this.y, ay, k);
     if (this.shakeT > 0) {
@@ -220,6 +239,8 @@ const Camera = {
   },
   shake(a, t) { this.shakeA = a; this.shakeT = t; }
 };
+/* zoom awal: HP 1,5x (karakter lebih besar + kamera mengikuti), desktop 1:1 */
+Camera.setZoom(TOUCH ? 1.5 : 1);
 
 /* ---------------- Collision & garis pandang ---------------- */
 function collideRect(a, rects) {

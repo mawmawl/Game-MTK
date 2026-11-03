@@ -182,7 +182,8 @@ function drawPrompt(label) {
 function drawArrowHint(wx, wy, t, label) {
   // koordinat dunia -> layar (bug lama: lupa mengurangi kamera)
   const cx = Math.round(Camera.x + Camera.ox), cy = Math.round(Camera.y + Camera.oy);
-  let sx = wx - cx, sy = wy - cy;
+  const Z = Camera.zoom;
+  let sx = (wx - cx) * Z, sy = (wy - cy) * Z;
   const onScreen = sx > 30 && sx < VW - 30 && sy > 34 && sy < VH - 30;
   const bob = Math.sin(t * 4) * 3;
   if (onScreen) {
@@ -202,7 +203,7 @@ function drawArrowHint(wx, wy, t, label) {
     // target di luar layar: penunjuk di tepi mengarah ke target
     sx = clamp(sx, 28, VW - 28);
     sy = clamp(sy, 44, VH - 44);
-    const ang = Math.atan2(wy - cy - sy, wx - cx - sx);
+    const ang = Math.atan2((wy - cy) * Z - sy, (wx - cx) * Z - sx);
     ctx.save();
     ctx.translate(Math.round(sx), Math.round(sy));
     ctx.rotate(ang - Math.PI / 2);
@@ -546,10 +547,11 @@ function drawInteractPopup(L) {
   ctx.restore();
   const bw = Math.min(252, Math.max(126, Math.round(tw) + 58)), bh = 38;
   const cxw = (o.x + o.w / 2) * TILE, cyw = o.y * TILE + 2;
-  const sx = clamp(Math.round(cxw - Camera.x - Camera.ox), bw / 2 + 10, VW - bw / 2 - 10);
+  const Z = Camera.zoom;
+  const sx = clamp(Math.round((cxw - Camera.x - Camera.ox) * Z), bw / 2 + 10, VW - bw / 2 - 10);
   // utamakan di atas benda; kalau tidak muat (benda di tepi atas), pindah ke bawah benda
-  const objTop = Math.round(cyw - Camera.y - Camera.oy);
-  const objBot = Math.round((o.y + o.h) * TILE - Camera.y - Camera.oy);
+  const objTop = Math.round((cyw - Camera.y - Camera.oy) * Z);
+  const objBot = Math.round(((o.y + o.h) * TILE - Camera.y - Camera.oy) * Z);
   let below = false;
   let sy = objTop - 52;
   if (sy < 74) { below = true; sy = Math.min(objBot + 52, VH - 72); }

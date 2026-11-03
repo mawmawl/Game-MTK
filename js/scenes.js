@@ -361,7 +361,7 @@ function updateGame(dt) {
   /* partikel lingkungan per tema */
   const th = L.def.theme;
   if (Math.random() < dt * 5) {
-    const x = Camera.x + Math.random() * VW, y = Camera.y + Math.random() * VH;
+    const x = Camera.x + Math.random() * Camera.vw(), y = Camera.y + Math.random() * Camera.vh();
     Particles.add({ x, y, vx: (Math.random() - .5) * 6, vy: 5 + Math.random() * 5, life: 3, size: 1, c: 'rgba(' + th.dust + ',0.35)' });
   }
   if (L.defIndex === 2) { // lab: uap & percikan
@@ -388,8 +388,8 @@ function updateGame(dt) {
 function drawTiles(Ld) {
   const th = Ld.def.theme;
   const map = Ld.def.map;
-  const c0 = Math.max(0, Math.floor(Camera.x / TILE)), c1 = Math.min(Ld.def.w - 1, Math.ceil((Camera.x + VW) / TILE));
-  const r0 = Math.max(0, Math.floor(Camera.y / TILE)), r1 = Math.min(Ld.def.h - 1, Math.ceil((Camera.y + VH) / TILE));
+  const c0 = Math.max(0, Math.floor(Camera.x / TILE)), c1 = Math.min(Ld.def.w - 1, Math.ceil((Camera.x + Camera.vw()) / TILE));
+  const r0 = Math.max(0, Math.floor(Camera.y / TILE)), r1 = Math.min(Ld.def.h - 1, Math.ceil((Camera.y + Camera.vh()) / TILE));
   const idx = Ld.defIndex;
   for (let r = r0; r <= r1; r++) {
     for (let c = c0; c <= c1; c++) {
@@ -508,6 +508,7 @@ function drawTiles(Ld) {
 
 function drawLighting(Ld) {
   const th = Ld.def.theme;
+  const Z = Camera.zoom;
   const cx = Math.round(Camera.x + Camera.ox), cy = Math.round(Camera.y + Camera.oy);
   if (th.ambient && th.ambient !== 'none') {
     ctx.fillStyle = th.ambient;
@@ -518,31 +519,31 @@ function drawLighting(Ld) {
   ctx.globalCompositeOperation = 'lighter';
   for (const o of Ld.objects) {
     for (const g of objectGlows(o, Ld.t, th)) {
-      const sx = g.x - cx, sy = g.y - cy;
-      if (sx < -80 || sx > VW + 80 || sy < -80 || sy > VH + 80) continue;
-      const grad = ctx.createRadialGradient(sx, sy, 2, sx, sy, g.r);
+      const sx = (g.x - cx) * Z, sy = (g.y - cy) * Z, gr = g.r * Z;
+      if (sx < -gr || sx > VW + gr || sy < -gr || sy > VH + gr) continue;
+      const grad = ctx.createRadialGradient(sx, sy, 2 * Z, sx, sy, gr);
       grad.addColorStop(0, 'rgba(' + g.c + ',' + g.a + ')');
       grad.addColorStop(1, 'rgba(' + g.c + ',0)');
       ctx.fillStyle = grad;
-      ctx.fillRect(sx - g.r, sy - g.r, g.r * 2, g.r * 2);
+      ctx.fillRect(sx - gr, sy - gr, gr * 2, gr * 2);
     }
   }
   // bilah cahaya dari jendela
   for (const o of Ld.objects) {
     if (o.type !== 'window') continue;
-    const wx = o.x * TILE - cx, wy = o.y * TILE - cy;
-    const ww = o.w * TILE;
+    const wx = (o.x * TILE - cx) * Z, wy = (o.y * TILE - cy) * Z;
+    const ww = o.w * TILE * Z;
     if (wx + ww < 0 || wx > VW) continue;
-    const shaftTop = wy + 32, shaftBot = wy + 170;
+    const shaftTop = wy + 32 * Z, shaftBot = wy + 170 * Z;
     const gr = ctx.createLinearGradient(0, shaftTop, 0, shaftBot);
     gr.addColorStop(0, 'rgba(' + (th.glowWindow || '255,200,140') + ',0.10)');
     gr.addColorStop(1, 'rgba(' + (th.glowWindow || '255,200,140') + ',0)');
     ctx.fillStyle = gr;
     ctx.beginPath();
-    ctx.moveTo(wx + 4, shaftTop);
-    ctx.lineTo(wx + ww - 4, shaftTop);
-    ctx.lineTo(wx + ww + 44, shaftBot);
-    ctx.lineTo(wx - 20, shaftBot);
+    ctx.moveTo(wx + 4 * Z, shaftTop);
+    ctx.lineTo(wx + ww - 4 * Z, shaftTop);
+    ctx.lineTo(wx + ww + 44 * Z, shaftBot);
+    ctx.lineTo(wx - 20 * Z, shaftBot);
     ctx.closePath();
     ctx.fill();
   }
@@ -566,10 +567,12 @@ function renderGame() {
     ctx.fillRect(0, 0, VW, VH);
     return;
   }
+  const Z = Camera.zoom;
   const cx = Math.round(Camera.x + Camera.ox), cy = Math.round(Camera.y + Camera.oy);
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, VW, VH);
   ctx.save();
+  if (Z !== 1) ctx.scale(Z, Z);       // zoom dunia (HP); HUD & panel tetap 1:1
   ctx.translate(-cx, -cy);
 
   drawTiles(L);
