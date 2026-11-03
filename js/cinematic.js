@@ -44,6 +44,12 @@ const Cinematic = (() => {
   const CARD_Y = 104;     // berkas rahasia
   const CARD_W = 520, CARD_H = 96;
   const LOGO_Y = 168;
+  /* posisi vertikal logo bisa digeser: saat frame akhir dipakai sebagai layar menu,
+     logo dinaikkan supaya menu bisa diletakkan di bawahnya */
+  let logoY = LOGO_Y;
+  /* true saat frame ini dipakai sebagai layar menu: kilau emas berulang pelan
+     (gaya sorot lampu versi sebelumnya, tidak menyilaukan) */
+  let menuUlang = false;
 
   /* ---------- data latar yang dihitung sekali ----------
      Lebar internal game adaptif (620..1200 px), jadi hujan & siluet kota
@@ -367,7 +373,7 @@ const Cinematic = (() => {
     const p0 = fade(t, T.logo, T.logo + 0.2);
     if (p0 <= 0) return;
     const g = uictx;
-    const text = 'SECRET MAIL', size = 26, sp = 4, by = LOGO_Y;
+    const text = 'SECRET MAIL', size = 26, sp = 4, by = logoY;
     g.save();
     g.font = FONT_PS(size);
     g.textAlign = 'left';
@@ -379,11 +385,33 @@ const Cinematic = (() => {
     const x0 = Math.round(VW / 2 - total / 2);
 
     // pendar di belakang judul
-    const bloom = g.createRadialGradient(VW / 2, by - 9, 8, VW / 2, by - 9, 210);
-    bloom.addColorStop(0, 'rgba(232,192,74,' + (0.14 * p0).toFixed(3) + ')');
-    bloom.addColorStop(1, 'rgba(232,192,74,0)');
+    /* Pendar kuning di belakang judul.
+       Dulu: gradasi radius 210 digambar dalam kotak 440x132 -> tepi kotaknya
+       memotong pendar, jadi muncul garis kontras mendadak di atas & bawah judul.
+       Sekarang: elips yang radiusnya sampai nol DI DALAM area gambar, dengan
+       kurva 9 tingkat (mirip gaussian) + halo luar tipis supaya tepinya larut,
+       dan warna amber yang lebih lembut (tidak menyala). */
+    const kuat = menuUlang ? (0.112 + 0.022 * Math.sin(t * 0.85)) : 0.105;
+    const RX = 262, RY = 86;
+    g.save();
+    g.translate(VW / 2, by - 8);
+    g.scale(1, RY / RX);
+    const bloom = g.createRadialGradient(0, 0, 4, 0, 0, RX);
+    const kurva = [[0, 1], [0.22, 0.80], [0.40, 0.58], [0.55, 0.39], [0.68, 0.24],
+                   [0.79, 0.135], [0.88, 0.065], [0.95, 0.022], [1, 0]];
+    for (const [pos, amp] of kurva) {
+      bloom.addColorStop(pos, 'rgba(232,196,116,' + (kuat * amp * p0).toFixed(4) + ')');
+    }
     g.fillStyle = bloom;
-    g.fillRect(VW / 2 - 220, by - 66, 440, 132);
+    g.fillRect(-RX - 6, -RX - 6, (RX + 6) * 2, (RX + 6) * 2);
+    // halo luar sangat tipis: menyambung pendar ke latar tanpa patahan
+    const halo = g.createRadialGradient(0, 0, RX * 0.45, 0, 0, RX * 1.85);
+    halo.addColorStop(0, 'rgba(232,196,116,' + (kuat * 0.13 * p0).toFixed(4) + ')');
+    halo.addColorStop(0.55, 'rgba(232,196,116,' + (kuat * 0.055 * p0).toFixed(4) + ')');
+    halo.addColorStop(1, 'rgba(232,196,116,0)');
+    g.fillStyle = halo;
+    g.fillRect(-RX * 1.9, -RX * 1.9, RX * 3.8, RX * 3.8);
+    g.restore();
 
     let x = x0;
     for (let i = 0; i < text.length; i++) {
@@ -410,16 +438,23 @@ const Cinematic = (() => {
     }
 
     // kilau melintas setelah semua huruf turun
-    const sweep = fade(t, T.logo + 0.62, T.logo + 1.35);
+    let sweep = fade(t, T.logo + 0.62, T.logo + 1.35);
+    if (menuUlang && t > T.logo + 2.2) {
+      // ulang tiap 6 detik: fase 0..1 sepanjang 1,25 detik (cahaya menyapu huruf)
+      const ph = ((t - (T.logo + 2.2)) % 6) / 1.25;
+      sweep = ph < 1 ? ph : 0;
+    }
     if (sweep > 0 && sweep < 1) {
-      const gx = x0 - 60 + (total + 120) * sweep;
-      const gl = g.createLinearGradient(gx - 22, 0, gx + 22, 0);
+      const gx = x0 - 70 + (total + 140) * sweep;
+      const gl = g.createLinearGradient(gx - 30, 0, gx + 30, 0);
       gl.addColorStop(0, 'rgba(255,255,255,0)');
-      gl.addColorStop(0.5, 'rgba(255,255,255,0.85)');
+      gl.addColorStop(0.28, 'rgba(255,248,228,0.14)');
+      gl.addColorStop(0.5, 'rgba(255,252,242,0.55)');
+      gl.addColorStop(0.72, 'rgba(255,248,228,0.14)');
       gl.addColorStop(1, 'rgba(255,255,255,0)');
       g.globalCompositeOperation = 'source-atop';
       g.fillStyle = gl;
-      g.fillRect(gx - 24, by - size - 4, 48, size + 10);
+      g.fillRect(gx - 36, by - size - 6, 72, size + 14);
       g.globalCompositeOperation = 'source-over';
     }
     g.restore();
@@ -459,7 +494,7 @@ const Cinematic = (() => {
     let sx = Math.round(VW / 2 - sw / 2);
     g.globalAlpha = p * 0.72;
     g.fillStyle = '#e8e2d6';
-    for (let i = 0; i < text.length; i++) { g.fillText(text[i], sx, LOGO_Y + 38); sx += sadv[i] + sp; }
+    for (let i = 0; i < text.length; i++) { g.fillText(text[i], sx, logoY + 38); sx += sadv[i] + sp; }
     g.restore();
   }
 
@@ -521,8 +556,12 @@ const Cinematic = (() => {
   /* ============================================================
      FRAME UTAMA — gambar satu frame pada waktu t (detik)
      ============================================================ */
-  function frame(t) {
-    t = clamp(t, 0, DUR);
+  function frame(t, opsi) {
+    opsi = opsi || {};
+    // mode bebas: waktu tidak dibatasi DUR, supaya hujan tetap turun di layar menu
+    t = clamp(t, 0, opsi.bebas ? 1e6 : DUR);
+    logoY = opsi.logoY || LOGO_Y;
+    menuUlang = !!opsi.ulangKilau;
     uiBegin();                                  // sekaligus membersihkan kanvas UI
 
     // --- dunia: latar, hujan, amplop, berkas ---
@@ -572,11 +611,11 @@ const Cinematic = (() => {
     }
     logo(t);
     subtitle(t);
-    prompts(t);
+    if (!opsi.tanpaPrompt) prompts(t);
 
     // --- masuk / keluar ---
     const fin = 1 - fade(t, 0, 0.55);
-    const fout = fade(t, T.end - 0.5, T.end);
+    const fout = opsi.tanpaFade ? 0 : fade(t, T.end - 0.5, T.end);
     const a = Math.max(fin, fout);
     if (a > 0) {
       ctx.fillStyle = 'rgba(4,3,10,' + a.toFixed(3) + ')';
@@ -606,7 +645,18 @@ const Cinematic = (() => {
     return a + b;
   }
 
-  return { DUR, T, CHAR_T, beats, frame, lockedChars };
+  /* frame akhir (panggung tenang: hujan + sorot emas ke logo) dipakai sebagai
+     latar layar menu utama; tanpa fade keluar, tanpa ajakan "tekan enter",
+     dan logo dinaikkan agar menu muat di bawahnya. */
+  function menuFrame(t, logoYmenu) {
+    return frame(t, {
+      bebas: true, tanpaPrompt: true, tanpaFade: true,
+      logoY: logoYmenu === undefined ? 90 : logoYmenu,
+      ulangKilau: true
+    });
+  }
+
+  return { DUR, T, CHAR_T, beats, frame, menuFrame, lockedChars };
 })();
 
 /* musik khusus intro: arpeggio lambat bernuansa misteri */

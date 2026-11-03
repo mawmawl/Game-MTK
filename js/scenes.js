@@ -1014,33 +1014,51 @@ function luxLogo(t) {
 
 /* tombol gaya kaca gelap bertepi emas (khusus layar judul) */
 function luxButton(x, y, w, h, label, cb, o = {}) {
-  const foc = o.focused;
+  /* o.appear (0..1): tombol menyusul muncul — naik sedikit lalu memudar masuk.
+     Sebelum cukup terlihat, tombol tidak digambar dan tidak bisa diklik. */
+  const ap = o.appear === undefined ? 1 : clamp(o.appear, 0, 1);
+  if (ap <= 0.02) return;
+  const ease = easeOutCubic(ap);
+  const y2 = y + Math.round((1 - ease) * 12);
+  const foc = o.focused && ap > 0.55;
   const now = performance.now();
   const g = uictx;
-  if (foc) {                                     // pendar fokus
-    const gl = g.createRadialGradient(x + w / 2, y + h / 2, 6, x + w / 2, y + h / 2, w * 0.9);
-    gl.addColorStop(0, 'rgba(232,192,74,0.13)');
-    gl.addColorStop(1, 'rgba(232,192,74,0)');
+  g.save();
+  g.globalAlpha = ease;
+  if (foc) {
+    /* Pendar fokus tombol. Dulu gradasi radius w*0,9 dipotong kotak w*1,7 x h*3,
+       jadi tepi kotaknya meninggalkan garis kontras di ATAS tombol.
+       Sekarang: elips dengan kurva halus yang mencapai nol di dalam area gambar. */
+    const RX = w * 0.92, RY = h * 1.55;
+    g.save();
+    g.translate(x + w / 2, y2 + h / 2);
+    g.scale(1, RY / RX);
+    const gl = g.createRadialGradient(0, 0, 3, 0, 0, RX);
+    const kur = [[0, 1], [0.25, 0.74], [0.45, 0.50], [0.62, 0.30], [0.78, 0.15], [0.90, 0.055], [1, 0]];
+    for (const [pos, amp] of kur) {
+      gl.addColorStop(pos, 'rgba(232,196,116,' + (0.085 * amp).toFixed(4) + ')');
+    }
     g.fillStyle = gl;
-    g.fillRect(x - w * 0.35, y - h, w * 1.7, h * 3);
+    g.fillRect(-RX - 4, -RX - 4, (RX + 4) * 2, (RX + 4) * 2);
+    g.restore();
   }
-  const bg = g.createLinearGradient(0, y, 0, y + h);
+  const bg = g.createLinearGradient(0, y2, 0, y2 + h);
   bg.addColorStop(0, foc ? 'rgba(40,31,70,0.96)' : 'rgba(20,16,34,0.88)');
   bg.addColorStop(1, foc ? 'rgba(22,17,40,0.96)' : 'rgba(11,8,18,0.88)');
   g.fillStyle = bg;
-  g.fillRect(x, y, w, h);
+  g.fillRect(x, y2, w, h);
   g.fillStyle = foc ? 'rgba(255,248,226,0.30)' : 'rgba(255,255,255,0.05)';
-  g.fillRect(x + 1, y + 1, w - 2, 1);
+  g.fillRect(x + 1, y2 + 1, w - 2, 1);
   g.strokeStyle = foc ? 'rgba(255,233,168,0.85)' : 'rgba(232,192,74,0.26)';
   g.lineWidth = 1;
-  g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  g.strokeRect(x + 0.5, y2 + 0.5, w - 1, h - 1);
   g.font = FONT_PS(8);
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   g.fillStyle = foc ? '#ffe9a8' : '#b8b1d6';
-  g.fillText(label, x + w / 2, y + h / 2 + 1);
+  g.fillText(label, x + w / 2, y2 + h / 2 + 1);
   if (foc) {                                     // penanda berlian berdenyut
-    const cx = x - 15, cy = y + h / 2;
+    const cx = x - 15, cy = y2 + h / 2;
     g.save();
     g.globalAlpha = 0.55 + 0.45 * Math.sin(now / 240);
     g.fillStyle = '#ffd75e';
@@ -1049,7 +1067,8 @@ function luxButton(x, y, w, h, label, cb, o = {}) {
     g.closePath(); g.fill();
     g.restore();
   }
-  UI.reg(x - 6, y - 6, w + 12, h + 12, cb, label);
+  g.restore();
+  if (ap > 0.55) UI.reg(x - 6, y2 - 6, w + 12, h + 12, cb, label);
 }
 function drawStarRow(x, y, n, total, r = 7) {
   for (let i = 0; i < total; i++) {
@@ -1103,6 +1122,13 @@ const Scenes = {
       update(dt) {
         const d = Scenes.data;
         checkMute();
+        // jam layar menu: dipakai untuk animasi "judul naik lalu tombol muncul"
+        d.menuT = (d.menuT || 0) + dt;
+        if (d.menuT < 0.62) {                  // masih transisi dari animasi pembuka
+          Input.pressed.clear();
+          Input.mouse.clicked = false;
+          return;
+        }
         d.idx = d.idx ?? 0;
         if (d.idx > 2 || d.idx < 0) d.idx = 0;
         if (Input.press('ArrowUp', 'w', 'W')) { d.idx = (d.idx + 2) % 3; SFX.uiMove(); }
@@ -1115,12 +1141,13 @@ const Scenes = {
         }
       },
       render() {
+        const d = Scenes.data;
         const t = performance.now() / 1000;
-        drawTitleBg(t);
-        // logo
-        // judul emas berlapis + subjudul berjarak huruf + garis pemisah
-        luxLogo(t);
-        // menu
+        const mt = d.menuT || 0;
+        // Akhiran animasi pembuka dipakai APA ADANYA sebagai layar menu:
+        // judul + tagline sedikit naik (168 -> 90), baru tombol menu menyusul.
+        const naik = easeOutCubic(clamp((mt - 0.12) / 0.8, 0, 1));
+        Cinematic.menuFrame(Cinematic.T.logo + 2.6 + t, 168 + (90 - 168) * naik);
         UI.begin();
         const opts = ['MULAI', 'PILIH LEVEL', 'CARA MAIN'];
         opts.forEach((o, i) => {
@@ -1128,12 +1155,18 @@ const Scenes = {
             if (i === 0) startLevel(Math.min(G.save.unlocked, 3) - 1);
             else if (i === 1) Scenes.go('select', { idx: Math.min(G.save.unlocked, 3) - 1 });
             else Scenes.go('how', { page: 0 });
-          }, { focused: Scenes.data.idx === i });
+          }, {
+            focused: d.idx === i,
+            appear: clamp((mt - 0.62 - i * 0.13) / 0.42, 0, 1)
+          });
         });
-        txt(TOUCH
-          ? 'joystick kiri • ketuk gelembung saat dekat benda' + (Snd.muted ? ' • suara MATI' : '')
-          : 'WASD/panah gerak • E bicara • TAB jurnal • M suara' + (Snd.muted ? ' (MATI)' : ''),
-            VW / 2, VH - 12, { font: FONT_VT(15), color: 'rgba(180,172,214,0.55)', align: 'center' });
+        const apHint = clamp((mt - 1.15) / 0.45, 0, 1);
+        if (apHint > 0.01) {
+          txt(TOUCH
+            ? 'joystick kiri • ketuk gelembung saat dekat benda' + (Snd.muted ? ' • suara MATI' : '')
+            : 'WASD/panah gerak • E bicara • TAB jurnal • M suara' + (Snd.muted ? ' (MATI)' : ''),
+              VW / 2, VH - 12, { font: FONT_VT(15), color: 'rgba(180,172,214,0.55)', align: 'center', alpha: apHint });
+        }
       }
     },
 
