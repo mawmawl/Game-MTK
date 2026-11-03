@@ -626,8 +626,21 @@ function renderGame() {
 
   // HUD & UI
   UI.begin();
-  drawHUD(L);
-  if (TOUCH) drawTouchControls(L);
+  /* Panel besar (jurnal/mesin/kurir/jeda) menutupi HUD: kartu objektif
+     (x 8..178, y 8..106) dan kartu waktu (kanan atas) tadinya tetap
+     tergambar sehingga tepinya terlihat menabrak pop-up. Sekarang HUD dan
+     kontrol sentuh disembunyikan selama panel terbuka, plus peredup
+     bersama supaya panel jelas berada di paling depan. Dialog tetap
+     menampilkan HUD karena kotaknya di bawah layar (y 268..346). */
+  const panelDepan = L.journal || L.machine.open || L.courierUI.open || L.pause;
+  if (panelDepan) {
+    ctx.fillStyle = 'rgba(6,5,14,0.62)';
+    ctx.fillRect(0, 0, VW, VH);
+    UI.begin();                       // hit-test dibersihkan: panel menang
+  } else {
+    drawHUD(L);
+    if (TOUCH) drawTouchControls(L);
+  }
   if (!anyModal() && !L.courierLeaving) {
     // di mode sentuh, petunjuk interaksi digantikan gelembung di atas benda
     if (L.near && !TOUCH) {
@@ -651,11 +664,7 @@ function renderGame() {
   if (L.journal) drawJournal(L);
   if (L.machine.open) drawMachineUI(L.machine);
   if (L.courierUI.open) drawCourierUI(L.courierUI);
-  if (L.pause) {
-    ctx.fillStyle = 'rgba(6,5,14,0.55)';
-    ctx.fillRect(0, 0, VW, VH);
-    drawPauseMenu(L.pause);
-  }
+  if (L.pause) drawPauseMenu(L.pause);   // peredupnya sudah digambar bersama panel lain
 }
 
 /* ============================================================
