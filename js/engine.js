@@ -477,12 +477,24 @@ function wrap(str, font, maxW) {
 
 /* ---------------- Fade transisi ---------------- */
 const Fade = {
-  a: 0, dir: 0, cb: null, speed: 2.6, seq: 0,
-  start(cb) { if (this.dir === 0) { this.dir = 1; this.cb = cb; this.seq++; } },
+  a: 0, dir: 0, cb: null, speed: 2.6, seq: 0, next: null,
+  /* Kalau transisi lain sedang menutup, jangan dibuang: simpan sebagai
+     permintaan berikutnya dan jalankan saat layar sudah benar-benar gelap.
+     (Dulu `if (this.dir === 0)` membuat aksi seperti "MENU UTAMA" dari
+     menu jeda hilang tanpa jejak saat fade level masih berjalan.) */
+  start(cb) {
+    if (this.dir === 1) { this.next = cb; return; }
+    this.dir = 1; this.cb = cb; this.seq++;
+  },
   update(dt) {
     if (this.dir === 1) {
       this.a += dt * this.speed;
-      if (this.a >= 1) { this.a = 1; this.dir = -1; if (this.cb) { const f = this.cb; this.cb = null; f(); } }
+      if (this.a >= 1) {
+        this.a = 1; this.dir = -1;
+        const f = this.cb; this.cb = null;
+        if (f) f();
+        if (this.next) { const g = this.next; this.next = null; g(); }
+      }
     } else if (this.dir === -1) {
       this.a -= dt * this.speed;
       if (this.a <= 0) { this.a = 0; this.dir = 0; }
