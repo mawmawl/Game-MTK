@@ -347,12 +347,30 @@ function drawMachineUI(M) {
     txt('memproses setiap huruf...', x + w / 2, cy, { font: FONT_VT(15), color: '#5a76a8', align: 'center' });
 
   } else if (M.phase === 'result') {
-    // ukuran huruf menyesuaikan lebar terukur agar sandi panjang tidak keluar kotak
-    const fsz = fitFont(M.resultText, [24, 22, 20, 18, 17, 16, 15, 14], w - 70, FONT_VT);
-    const lines = wrapHard(M.resultText, FONT_VT(fsz), w - 70);
-    const boxH = 18 + lines.length * (fsz + 4);
-    R(x + 30, cy, w - 60, boxH, '#0d2a1c');
-    O(x + 30, cy, w - 60, boxH, '#2a6a4a');
+    /* Jarak diukur dari tinta huruf, bukan garis dasar: VT323 punya tinta
+       0,56 x ukuran di atas dan 0,16 x ukuran di bawah garis dasar. Dulu
+       kotak menyisakan cuma 5 px di atas tetapi 25 px di bawah, dan sisinya
+       hanya 6 px. Sekarang atas = bawah = PY, sisi = PX. */
+    const PX = 16, PY = 10, LG = 4;
+    const maxW = w - 60 - PX * 2;
+    const fsz = fitFont(M.resultText, [24, 22, 20, 18, 17, 16, 15, 14], maxW, FONT_VT);
+    const lines = wrapHard(M.resultText, FONT_VT(fsz), maxW);
+    // tinggi tinta diukur langsung dari hurufnya, jadi jarak atas = bawah = PY
+    uictx.font = FONT_VT(fsz);
+    let as = 0, ds = 0;
+    for (const ln of lines) {
+      const m = uictx.measureText(ln);
+      as = Math.max(as, Math.ceil(m.actualBoundingBoxAscent));
+      ds = Math.max(ds, Math.ceil(m.actualBoundingBoxDescent));
+    }
+    const lineH = fsz + LG;
+    const boxH = PY + as + (lines.length - 1) * lineH + ds + PY;
+    // seluruh isi diseimbangkan di antara judul dan baris petunjuk bawah
+    const isiH = boxH + 16 + Math.ceil(8 * 0.56) + Math.ceil(8 * 0.16) + 12 + 26 + 16 + Math.ceil(16 * 0.56);
+    const boxTop = y + 40 + Math.max(0, Math.round((h - 70 - isiH) * 0.35));
+
+    R(x + 30, boxTop, w - 60, boxH, '#0d2a1c');
+    O(x + 30, boxTop, w - 60, boxH, '#2a6a4a');
     // sandi "dicetak" huruf demi huruf oleh mesin (revT dari updateMachine)
     const total = lines.reduce((s, l) => s + l.length, 0);
     const shown = Math.min(total, Math.floor((M.revT || 0) / 0.045));
@@ -362,7 +380,7 @@ function drawMachineUI(M) {
     uictx.textBaseline = 'alphabetic';
     let gi = 0, curX = 0, curY = 0;
     lines.forEach((ln, i) => {
-      const ly = cy + 18 + i * (fsz + 4);
+      const ly = boxTop + PY + as + i * lineH;
       let lx = x + w / 2 - uictx.measureText(ln).width / 2;
       for (const ch of ln) {
         const cw = uictx.measureText(ch).width;
@@ -381,13 +399,18 @@ function drawMachineUI(M) {
       uictx.fillRect(Math.round(curX), curY - fsz + 3, Math.max(2, Math.round(fsz * 0.35)), fsz - 3);
     }
     uictx.restore();
-    cy += boxH + 16;
-    txt('\u2714 TERSIMPAN DI JURNAL [TAB]', x + w / 2, cy, { font: FONT_PS(8), color: shown >= total ? '#ffe9a8' : 'rgba(255,233,168,0.35)', align: 'center' });
-    cy += 12;
-    // tombol salin di tengah, teks berikutnya di bawahnya (tidak saling menimpa)
-    button(x + w / 2 - 70, cy, 140, 26, copiedRecently() ? '\u2713 TERSALIN' : 'SALIN TEKS', () => copyText(M.resultText), { size: 7 });
-    cy += 34;
-    txt('Antar teks ini ke kurir di dekat pintu!', x + w / 2, cy, { font: FONT_VT(16), color: '#a8c8d8', align: 'center' });
+
+    // 16 px di bawah tinta terakhir di dalam kotak
+    const yStatus = boxTop + boxH + 16 + Math.ceil(8 * 0.56);
+    txt('\u2714 TERSIMPAN DI JURNAL [TAB]', x + w / 2, yStatus,
+      { font: FONT_PS(8), color: shown >= total ? '#ffe9a8' : 'rgba(255,233,168,0.35)', align: 'center' });
+    // tombol 12 px di bawah tinta status
+    const yBtn = yStatus + Math.ceil(8 * 0.16) + 12;
+    button(x + w / 2 - 70, yBtn, 140, 26, copiedRecently() ? '\u2713 TERSALIN' : 'SALIN TEKS',
+      () => copyText(M.resultText), { size: 7 });
+    // petunjuk 16 px di bawah tombol
+    txt('Antar teks ini ke kurir di dekat pintu!', x + w / 2, yBtn + 26 + 16 + Math.ceil(16 * 0.56),
+      { font: FONT_VT(16), color: '#a8c8d8', align: 'center' });
     txt('Esc \u2014 tutup', x + w / 2, y + h - 10, { font: FONT_VT(13), color: '#5a5488', align: 'center' });
   }
 }
@@ -606,16 +629,29 @@ function drawMachineTouch(M) {
   }
 
   if (M.phase === 'result') {
-    const fsz = fitFont(M.resultText, [26, 24, 22, 20, 18, 17, 16, 15, 14], w - 90, FONT_VT);
-    const lines = wrapHard(M.resultText, FONT_VT(fsz), w - 90);
-    const boxH = 20 + lines.length * (fsz + 6);
-    R(x + 40, y + 52, w - 80, boxH, '#0d2a1c'); O(x + 40, y + 52, w - 80, boxH, '#2a6a4a');
-    lines.forEach((ln, i) => txt(ln, x + w / 2, y + 74 + i * (fsz + 6),
+    // jarak dari tinta huruf: atas = bawah (dulu atas 1 px, bawah 30 px)
+    const PX = 18, PY = 12, LG = 6;
+    const maxW = w - 80 - PX * 2;
+    const fsz = fitFont(M.resultText, [26, 24, 22, 20, 18, 17, 16, 15, 14], maxW, FONT_VT);
+    const lines = wrapHard(M.resultText, FONT_VT(fsz), maxW);
+    uictx.font = FONT_VT(fsz);
+    let as = 0, ds = 0;
+    for (const ln of lines) {
+      const m = uictx.measureText(ln);
+      as = Math.max(as, Math.ceil(m.actualBoundingBoxAscent));
+      ds = Math.max(ds, Math.ceil(m.actualBoundingBoxDescent));
+    }
+    const lineH = fsz + LG;
+    const boxH = PY + as + (lines.length - 1) * lineH + ds + PY;
+    const boxTop = y + 52;
+    R(x + 40, boxTop, w - 80, boxH, '#0d2a1c'); O(x + 40, boxTop, w - 80, boxH, '#2a6a4a');
+    lines.forEach((ln, i) => txt(ln, x + w / 2, boxTop + PY + as + i * lineH,
       { font: FONT_VT(fsz), color: '#7ae68a', align: 'center' }));
-    txt('\u2714 TERSIMPAN DI JURNAL', x + w / 2, y + 60 + boxH + 24,
+    const yStatus = boxTop + boxH + 22 + Math.ceil(8 * 0.56);
+    txt('\u2714 TERSIMPAN DI JURNAL', x + w / 2, yStatus,
         { font: FONT_PS(8), color: '#ffe9a8', align: 'center' });
-    button(x + w / 2 - 150, y + 60 + boxH + 42, 300, 46, copiedRecently() ? '\u2713 TERSALIN' : 'SALIN TEKS',
-      () => copyText(M.resultText), { size: 8 });
+    button(x + w / 2 - 150, yStatus + Math.ceil(8 * 0.16) + 14, 300, 46,
+      copiedRecently() ? '\u2713 TERSALIN' : 'SALIN TEKS', () => copyText(M.resultText), { size: 8 });
     txt('Antar sandi ini ke kurir di dekat pintu', x + w / 2, y + h - 60,
         { font: FONT_VT(17), color: '#a8c8d8', align: 'center' });
     button(x + w / 2 - 80, y + h - 46, 160, 34, 'TUTUP', () => { M.open = false; SFX.uiBack(); }, { size: 7 });
