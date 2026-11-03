@@ -557,7 +557,29 @@ function drawInteractPopup(L) {
   if (sy < 74) { below = true; sy = Math.min(objBot + 52, VH - 72); }
   // jaga agar area ketuk gelembung tidak menutupi ikon tas/jeda di baris atas (y 8..48)
   sy = Math.max(sy, 79);
-  const bx = Math.round(sx - bw / 2), by = sy - bh / 2;
+  let bx = Math.round(sx - bw / 2), by = sy - bh / 2;
+  /* Di HP joystick memakai sudut kiri-bawah (baseX/baseY +- 80). Gelembung
+     yang jatuh di sana memenangkan ketukan (hitVKey dicek lebih dulu)
+     sehingga joystick tidak bisa dipakai. Geser: (1) ke atas zona,
+     (2) ke kanan zona, (3) terakhir ke baris atas layar. */
+  if (TOUCH && typeof Input !== 'undefined' && Input.touchUI) {
+    const J = Input.touchUI, pad = 10;
+    const zx0 = J.baseX - 80 - pad, zx1 = J.baseX + 80 + pad;
+    const zy0 = J.baseY - 80 - pad, zy1 = J.baseY + 80 + pad;
+    // area ketuk gelembung = kotak + 8 px keliling + 24 px di bawah (lihat vkeys.push)
+    const kena = (x, y) => (x - 8) < zx1 && (x - 8) + bw + 16 > zx0 &&
+                           (y - 8) < zy1 && (y - 8) + bh + 24 > zy0;
+    if (kena(bx, by)) {
+      const atas = Math.round(zy0 - bh - 16);      // area ketuk tepat di atas zona
+      const kanan = Math.round(zx1 + 8);           // area ketuk tepat di kanan zona
+      if (atas >= 74) by = atas;
+      else if (kanan + bw + 8 <= VW - 10) bx = kanan;
+      else by = 79;
+    }
+  }
+  // panah menunjuk benda; ikuti posisi gelembung setelah digeser
+  const ax = clamp(sx, bx + 18, bx + bw - 18);
+  const bawahBenda = (by + bh / 2) > Math.round((cyw + o.h * TILE / 2 - Camera.y - Camera.oy) * Z);
   const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 260);
   R(bx + 2, by + 3, bw, bh, 'rgba(0,0,0,0.5)');
   R(bx, by, bw, bh, 'rgba(24,20,48,0.94)');
@@ -565,15 +587,15 @@ function drawInteractPopup(L) {
   R(bx, by, bw, 2, 'rgba(255,242,200,' + (0.5 + 0.5 * pulse).toFixed(2) + ')');
   // panah kecil menunjuk benda (arah menyesuaikan posisi gelembung)
   ctx.fillStyle = '#ffd75e';
-  if (below) {
-    R(sx - 7, by - 7, 14, 7, 'rgba(24,20,48,0.94)');
+  if (!bawahBenda) {
+    R(ax - 7, by - 7, 14, 7, 'rgba(24,20,48,0.94)');
     ctx.beginPath();
-    ctx.moveTo(sx - 7, by - 1); ctx.lineTo(sx + 7, by - 1); ctx.lineTo(sx, by - 9);
+    ctx.moveTo(ax - 7, by - 1); ctx.lineTo(ax + 7, by - 1); ctx.lineTo(ax, by - 9);
     ctx.closePath(); ctx.fill();
   } else {
-    R(sx - 7, by + bh, 14, 7, 'rgba(24,20,48,0.94)');
+    R(ax - 7, by + bh, 14, 7, 'rgba(24,20,48,0.94)');
     ctx.beginPath();
-    ctx.moveTo(sx - 7, by + bh + 1); ctx.lineTo(sx + 7, by + bh + 1); ctx.lineTo(sx, by + bh + 9);
+    ctx.moveTo(ax - 7, by + bh + 1); ctx.lineTo(ax + 7, by + bh + 1); ctx.lineTo(ax, by + bh + 9);
     ctx.closePath(); ctx.fill();
   }
   // chip E + label
