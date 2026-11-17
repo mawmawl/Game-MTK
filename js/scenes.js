@@ -61,7 +61,7 @@ function buildLevel(idx) {
     // revisi: tiap level beda fungsi + tugas deskripsi + nyawa
     c: puzzle.c, komposisi: puzzle.komposisi,
     masukAsli: puzzle.masukAsli, masukSandi: puzzle.masukSandi,
-    masukAda: (def.kerja === 'dec' || def.kerja === 'inv'),
+    masukAda: false,          // utk level deskripsi: sandi didapat dari benda yang dicari
     hasilDeskripsi: null, lives: 3, livesMax: 3, gagal: false,
     found: { message: false, note: false, enc: false }, delivered: false,
     player,
@@ -154,18 +154,36 @@ function interact(o) {
     if (o.searched) { openDialog(o.label, 'Sudah kau periksa. Tidak ada lagi di sini.'); return; }
     o.searched = true;
     const cx = (o.x + o.w / 2) * TILE, cy = o.y * TILE + 10;
+    /* Di level DESKRIPSI/INVERS benda ini berisi SOBEKAN BERSANDI (teks
+       terenkripsi). Sandi tanpa catatan tidak berguna, catatan tanpa sandi
+       juga tidak — jadi keduanya wajib dicari. */
+    const bukaSandi = (L.def.kerja === 'dec' || L.def.kerja === 'inv');
     if (o.has === 'message') {
       L.found.message = true;
+      if (bukaSandi) L.masukAda = true;              // sandi kini di tangan
       SFX.discover();
-      Particles.burst(cx, cy, { n: 18, c: ['#ffe28a', '#fff6d8', '#ffb54a'], sp: 70, life: .8 });
-      Particles.text(cx, cy - 14, '+ PESAN DITEMUKAN', '#ffe28a');
-      openDialog('Pesan Rahasia', '“' + L.message + '” — pesan ini harus segera dienkripsi! Sekarang cari catatan fungsinya.', null, '#ffe28a');
+      Particles.burst(cx, cy, { n: 18, c: bukaSandi ? ['#7ac8ff', '#d0f0ff', '#3a7a9a']
+                                                     : ['#ffe28a', '#fff6d8', '#ffb54a'], sp: 70, life: .8 });
+      Particles.text(cx, cy - 14, bukaSandi ? '+ SOBEKAN SANDI' : '+ PESAN DITEMUKAN',
+                     bukaSandi ? '#7ac8ff' : '#ffe28a');
+      openDialog(bukaSandi ? 'Sobekan Sandi' : 'Pesan Rahasia',
+        bukaSandi
+          ? 'Tulisan acak: \u201c' + L.masukSandi + '\u201d. Ini hasil ENKRIPSI — cari catatan fungsinya, lalu buka dengan mesin (mode ' +
+            (L.def.kerja === 'inv' ? 'INVERS' : 'DESKRIPSI') + ').'
+          : '\u201c' + L.message + '\u201d — pesan ini harus segera dienkripsi! Sekarang cari catatan fungsinya.',
+        null, bukaSandi ? '#7ac8ff' : '#ffe28a');
     } else if (o.has === 'note') {
       L.found.note = true;
       SFX.discover();
       Particles.burst(cx, cy, { n: 18, c: ['#7ae68a', '#d0ffe0', '#3a9a6a'], sp: 70, life: .8 });
       Particles.text(cx, cy - 14, '+ CATATAN FUNGSI', '#7ae68a');
-      openDialog('Catatan Fungsi', 'Tertulis: ' + Crypto.fmtFn(L.a, L.b) + '. Masukkan nilai a dan b ke mesin enkripsi!', null, '#7ae68a');
+      const isiCatatan = L.komposisi ? Crypto.fmtKomposisi(L.a, L.c).join('  \u2022  ') : Crypto.fmtFn(L.a, L.b);
+      openDialog('Catatan Fungsi',
+        'Tertulis: ' + isiCatatan + (bukaSandi
+          ? '. Pilih mode ' + (L.def.kerja === 'inv' ? 'INVERS' : 'DESKRIPSI') + ' di mesin, lalu masukkan ' +
+            (L.komposisi ? 'a (dari h) dan c (dari g)' : 'a dan b') + '.'
+          : '. Masukkan ' + (L.komposisi ? 'a (dari h) dan c (dari g)' : 'nilai a dan b') + ' ke mesin enkripsi!'),
+        null, '#7ae68a');
     } else {
       SFX.paper();
       openDialog(o.label, spick(L.def.flavor));
@@ -192,6 +210,10 @@ function modeLabel() {
 }
 
 function submitMachine(M) {
+  if (machineMode() === 'dec' && !L.masukAda) {
+    M.msg = { text: 'Belum ada sandi untuk dibuka — cari dulu sobekannya.', c: '#ffb0a0' };
+    SFX.deny(); return;
+  }
   const L3 = L.komposisi;
   if (M.fa === '' || M.fb === '' || M.fb === '-') {
     M.msg = { text: L3 ? 'Isi dulu nilai a dan c.' : 'Isi dulu nilai a dan b.', c: '#ffb0a0' };

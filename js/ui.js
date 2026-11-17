@@ -130,8 +130,9 @@ function drawHUD(L) {
   // panel objektif kiri atas
   const role = L.def.kerja;
   const objs = role === 'dec' || role === 'inv'
-    ? [['Temukan fungsi', L.found.note],
-       ['Buka sandi masuk', !!L.hasilDeskripsi],
+    ? [['Temukan sobekan sandi', L.found.message],
+       ['Temukan fungsi', L.found.note],
+       ['Buka sandinya', !!L.hasilDeskripsi],
        ['Antar ke kurir', !!L.resultsGiven]]
     : role === 'komposisi'
     ? [['Temukan pesan', L.found.message],
@@ -293,10 +294,10 @@ function drawJournal(L) {
   const roleJ = L.def.kerja, hanyaBuka = (roleJ === 'dec' || roleJ === 'inv');
   const sections = [
     hanyaBuka
-      ? { title: 'SURAT MASUK (sandi dari markas)',
+      ? { title: 'SOBEKAN SANDI (hasil temuan)',
           hh: sandiAktif ? Math.max(70, 36 + encLines.length * (efsz + 4)) : 70,
           fsz: efsz, col: '#7ac8ff', body: sandiAktif || '???', ok: !!sandiAktif,
-          hint: 'Markas belum mengirim apa pun' }
+          hint: 'Periksa benda di ruangan [E]' }
       : { title: 'PESAN RAHASIA', hh: 70, fsz: 19, col: '#f0ecff', body: '', ok: false },
     { title: 'CATATAN FUNGSI', hh: L.komposisi ? 96 : 70, fsz: L.komposisi ? 15 : 19, col: '#f0ecff',
       body: L.found.note ? Crypto.fmtFn(L.a, L.b) : 'Belum ditemukan...',
