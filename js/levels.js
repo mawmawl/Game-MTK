@@ -247,9 +247,29 @@ const LEVELS = [
 ];
 
 /* ============================================================
-   CATATAN (belum selesai): LEVEL 4 — BUNKER (KOMPOSISI)
-   Peta turunan cermin dari Lab sudah dirancang, tetapi buildLevel()
-   masih gagal saat membangunnya (penyebab belum ketemu: kandidat
-   utama jalur musuh / playerStart hasil cermin). Level 4 dimatikan
-   dulu supaya tidak ada level yang bisa dipilih tetapi rusak.
+   LEVEL 4 — BUNKER BAWAH TANAH (KOMPOSISI)
+   Peta diturunkan dari Lab dengan CERMIN horizontal: cermin adalah
+   isometri, jadi keterjangkauan & jalur musuh dijamin tetap sah.
+   Fungsi: f(x) = h(g(x)) dengan g(x) = x + c dan h(y) = a y.
    ============================================================ */
+(function () {
+  const lab = LEVELS[2];
+  const W = lab.w;
+  const cerminX = x => W - 1 - x;
+  // warisi SELURUH def lab (termasuk courier, target, themeMusic) lalu timpa
+  // bagian yang dicerminkan — cara ini menghindari field yang terlupa
+  LEVELS.push(Object.assign({}, lab, {
+    name: 'Bunker', subtitle: 'Rahasia Terakhir', target: 330, kerja: 'komposisi',
+    map: lab.map.map(r => r.split('').reverse().join('')),
+    courier: { x: cerminX(lab.courier.x), y: lab.courier.y },
+    theme: Object.assign({}, lab.theme, { dust: '200,150,240', glowWindow: '225,180,255' }),
+    playerStart: { x: cerminX(lab.playerStart.x), y: lab.playerStart.y },
+    objects: lab.objects.map(o => Object.assign({}, o, { x: W - o.x - (o.w || 1) })),
+    enemies: lab.enemies.map(e => Object.assign({}, e, {
+      path: (e.path || []).map(q => [cerminX(q[0]), q[1]])
+    })),
+    intro: ['Markas musuh ternyata di bawah tanah.',
+            'Kali ini DUA rumus dipakai berurutan: g(x) = x + c lalu h(y) = a y.',
+            'Susun komposisinya, buka sandinya, lalu kirim balasan yang benar.']
+  }));
+})();
