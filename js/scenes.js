@@ -345,11 +345,22 @@ function submitCourier(C) {
     C.shakeT = .5; SFX.deny(); Camera.shake(2, .2);
   }
 }
+/* teks yang harus diketik ke kurir pada tahap ini (sadar peran level).
+   Dulu di sini memakai L.encrypted yang bernilai null di level deskripsi
+   -> L.encrypted.length melempar TypeError -> update kurir (dan loop game)
+   berhenti, sehingga pemain tidak bisa mengetik apa pun. */
+function teksTargetKurir() {
+  const k = L.def.kerja;
+  if (k === 'dec' || k === 'inv') return L.masukAsli || '';
+  if (k === 'komposisi') return L.masukAda ? (L.masukAsli || '') : (L.encrypted || '');
+  return L.encrypted || '';
+}
 function updateCourierUI(dt) {
   const C = L.courierUI;
   if (C.shakeT > 0) C.shakeT -= dt;
+  const target = teksTargetKurir();
   for (const ch of Input.charQueue) {
-    if (/[a-zA-Z ]/.test(ch) && C.value.length < L.encrypted.length + 8) { C.value += ch; SFX.type(); }
+    if (/[a-zA-Z ]/.test(ch) && C.value.length < target.length + 8) { C.value += ch; SFX.type(); }
   }
   if (Input.press('Backspace')) { C.value = C.value.slice(0, -1); SFX.type(); }
   if (Input.press('Enter')) submitCourier(C);

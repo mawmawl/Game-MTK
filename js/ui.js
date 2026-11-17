@@ -476,7 +476,7 @@ function drawCourierUI(C) {
   drawTextInput(x + 24, y + 50, w - 48, 34, C.value, true, { color: '#ffe9a8', size: csize });
   // dibatasi lebarnya: pesan panjang tidak boleh menabrak penghitung huruf di kanan
   if (C.msg) txt(C.msg.text, x + 26, y + 100, { font: FONT_VT(16), color: C.msg.c, maxWidth: w - 224 });
-  txt(C.value.length + ' / ' + ((L.masukAda ? L.masukAsli : L.encrypted) || '').length + ' huruf', x + w - 26, y + 100, { font: FONT_VT(14), color: '#8a84b8', align: 'right' });
+  txt(C.value.length + ' / ' + teksTargetKurir().length + ' huruf', x + w - 26, y + 100, { font: FONT_VT(14), color: '#8a84b8', align: 'right' });
   button(x + 26, y + 138, 152, 28, 'ISI OTOMATIS', () => { C.value = L.masukAda ? '' : (L.encrypted || ''); C.msg = null; SFX.paper(); }, { size: 7 });
   button(x + 190, y + 138, 118, 28, 'HAPUS', () => { C.value = ''; SFX.uiBack(); }, { size: 7 });
   button(x + 320, y + 138, 174, 28, 'KIRIM (ENTER)', () => submitCourier(C), { size: 7 });
@@ -777,7 +777,7 @@ function drawCourierTouch(C) {
   const shown = C.value || L.encrypted || '';
   const csize = fitFont(shown, [24, 22, 20, 18, 17, 16, 15, 14], w - 90, FONT_VT);
   drawTextInput(x + 30, y + 56, w - 60, 38, C.value, true, { color: '#ffe9a8', size: csize });
-  txt(C.value.length + ' / ' + ((L.masukAda ? L.masukAsli : L.encrypted) || '').length + ' huruf', x + w - 34, y + 110,
+  txt(C.value.length + ' / ' + teksTargetKurir().length + ' huruf', x + w - 34, y + 110,
       { font: FONT_VT(15), color: '#8a84b8', align: 'right' });
   if (C.msg) txt(C.msg.text, x + 30, y + 110, { font: FONT_VT(17), color: C.msg.c, maxWidth: w - 224 });
   else txt('besar / kecil huruf harus persis sama', x + 30, y + 110, { font: FONT_VT(15), color: '#5a5488' });
