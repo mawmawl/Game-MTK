@@ -428,7 +428,6 @@ function drawAcuan(jx, y, w, h) {
   const t = Crypto.kuantifikasi();
   const lebar = w - 32;
   let sy = y + 30;
-  txt('ACUAN \u2014 sama dengan handout proyek', jx + 16, sy - 12, { font: FONT_PS(6), color: '#ffe9a8' });
   txt('TABEL KUANTIFIKASI HURUF', jx + 16, sy, { font: FONT_PS(6), color: '#7ac8ff' });
   sy += 15;
   const kol = 6, leb = lebar / kol;
@@ -439,7 +438,7 @@ function drawAcuan(jx, y, w, h) {
     txt(t[i].kecil + '=' + t[i].nKecil, kx + leb * 0.42, ky, { font: FONT_VT(12), color: '#8ab0d8' });
   }
   sy += Math.ceil(t.length / kol) * 13 + 4;
-  sy = barisAcuan('spasi = 0 \u2022 hasil di luar \u221226\u2026+26 diputar (modulo 53)', jx + 16, sy, lebar, '#ffd08a') + 4;
+  sy = barisAcuan('spasi = 0 \u2022 deret kode dibiarkan apa adanya (tanpa diputar)', jx + 16, sy, lebar, '#ffd08a') + 4;
   txt('KAMUS ISTILAH', jx + 16, sy, { font: FONT_PS(6), color: '#7ac8ff' });
   sy += 14;
   sy = barisAcuan('plainteks = pesan asli \u2022 cipherteks = sandi \u2022 deskripsi = buka sandi',
@@ -449,10 +448,11 @@ function drawAcuan(jx, y, w, h) {
   sy += 14;
   sy = barisAcuan('\u201c' + cb.plainteks + '\u201d \u2192 kunci: ' + Crypto.fmtVerbal(cb.a, cb.b, 0, false),
     jx + 16, sy, lebar, '#f0ecff') + 2;
-  sy = barisAcuan(Crypto.fmtFn(cb.a, cb.b) + ' \u2192 sandi: ' + cb.cipherteks.slice(0, 20) + '\u2026',
+  sy = barisAcuan(Crypto.fmtFn(cb.a, cb.b) + ' \u2192 deret kode: ' +
+    Crypto.deretKode(cb.plainteks, cb.a, cb.b).split(' ').slice(0, 4).join(' ') + ' \u2026',
     jx + 16, sy, lebar, '#7ae68a') + 2;
-  barisAcuan('dibuka dengan f\u207b\u00b9(x) = (x \u2212 ' + cb.b + ') \u00f7 ' + cb.a +
-    ' \u2192 pesannya terbaca lagi', jx + 16, sy, lebar, '#8ab0d8');
+  barisAcuan('dibuka: f\u207b\u00b9(x) = (x \u2212 ' + cb.b + ') \u00f7 ' + cb.a + '  (' +
+    Crypto.fmtVerbalInvers(cb.a, cb.b, 0, false) + ')', jx + 16, sy, lebar, '#8ab0d8');
 }
 function journalTabs(jx, y, w, h) {
   const bh = TOUCH ? 30 : 24, by = y + h - bh - 16;
@@ -532,7 +532,7 @@ function drawJournal(L) {
 /* ---------- Panel Mesin Enkripsi ---------- */
 function drawMachineUI(M) {
   if (TOUCH) { drawMachineTouch(M); return; }
-  const w = 360, h = 236, x = VW / 2 - w / 2, y = VH / 2 - h / 2 - 8;
+  const w = 360, h = M.phase === 'result' ? 344 : 236, x = VW / 2 - w / 2, y = VH / 2 - h / 2 - 8;
   panel(x, y, w, h, { title: '\u2699 MESIN ENKRIPSI \u2699', accent: '#7ae68a', bg: '#141a2c', close: () => { M.open = false; SFX.uiBack(); } });
   // alur vertikal: mulai di bawah judul, setiap elemen menempel posisi elemen sebelumnya
   let cy = y + 40;
@@ -594,9 +594,21 @@ function drawMachineUI(M) {
     }
     const lineH = fsz + LG;
     const boxH = PY + as + (lines.length - 1) * lineH + ds + PY;
+    /* DERET KODE di atas teks: bentuk hitungan persis handout (tanpa
+       pemutaran). Teks sandi di bawahnya tetap yang dipakai ke kurir. */
+    const kodeTeks = Crypto.deretKode(machineMode() === 'dec' ? L.masukAsli : L.message, L.a, L.b);
+    const kodeBaris = wrap(kodeTeks, FONT_VT(13), w - 70);
+    const kodeTampil = kodeBaris.slice(0, 3);
+    if (kodeBaris.length > 3) kodeTampil[2] = kodeTampil[2].slice(0, Math.max(4, kodeTampil[2].length - 2)) + '\u2026';
+    const kodeY = y + 44;
+    txt('DERET KODE \u2014 bentuk buku (tanpa diputar)', x + w / 2, kodeY, { font: FONT_PS(6), color: '#7ac8ff', align: 'center' });
+    kodeTampil.forEach((ln, i) => txt(ln, x + w / 2, kodeY + 18 + i * 15, { font: FONT_VT(13), color: '#c8c2f0', align: 'center' }));
+    const yCaption = kodeY + 18 + kodeTampil.length * 15 + 8;
+    txt('TEKS SANDI \u2014 ini yang dipakai ke kurir', x + w / 2, yCaption, { font: FONT_PS(6), color: '#7ae68a', align: 'center' });
+    const codeH = (yCaption - (y + 40)) + 20;
     // seluruh isi diseimbangkan di antara judul dan baris petunjuk bawah
-    const isiH = boxH + 16 + Math.ceil(8 * 0.56) + Math.ceil(8 * 0.16) + 12 + 26 + 16 + Math.ceil(16 * 0.56);
-    const boxTop = y + 40 + Math.max(0, Math.round((h - 70 - isiH) * 0.35));
+    const isiH = codeH + boxH + 16 + Math.ceil(8 * 0.56) + Math.ceil(8 * 0.16) + 12 + 26 + 16 + Math.ceil(16 * 0.56);
+    const boxTop = y + 40 + codeH + Math.max(0, Math.round((h - 70 - isiH) * 0.35));
 
     R(x + 30, boxTop, w - 60, boxH, '#0d2a1c');
     O(x + 30, boxTop, w - 60, boxH, '#2a6a4a');
@@ -870,7 +882,7 @@ function drawTouchControls(L) {
 
 /* keypad angka untuk mesin enkripsi */
 function drawMachineTouch(M) {
-  const w = 600, h = 328, x = VW / 2 - w / 2, y = 14;
+  const w = 600, h = M.phase === 'result' ? 400 : 328, x = VW / 2 - w / 2, y = 14;
   panel(x, y, w, h, { title: '\u2699 MESIN ENKRIPSI \u2699', accent: '#7ae68a', bg: '#141a2c',
     close: () => { M.open = false; SFX.uiBack(); } });
 
@@ -899,7 +911,19 @@ function drawMachineTouch(M) {
     }
     const lineH = fsz + LG;
     const boxH = PY + as + (lines.length - 1) * lineH + ds + PY;
-    const boxTop = y + 52;
+    /* DERET KODE (bentuk buku, tanpa diputar) di atas teks sandi */
+    const kodeTeksT = Crypto.deretKode(machineMode() === 'dec' ? L.masukAsli : L.message, L.a, L.b);
+    const kodeBarisT = wrap(kodeTeksT, FONT_VT(15), w - 90);
+    const kodeTampilT = kodeBarisT.slice(0, 2);
+    if (kodeBarisT.length > 2) kodeTampilT[1] = kodeTampilT[1].slice(0, Math.max(4, kodeTampilT[1].length - 2)) + '\u2026';
+    txt('DERET KODE \u2014 bentuk buku (tanpa diputar)', x + w / 2, y + 44,
+      { font: FONT_PS(7), color: '#7ac8ff', align: 'center' });
+    kodeTampilT.forEach((ln, i) => txt(ln, x + w / 2, y + 62 + i * 17,
+      { font: FONT_VT(15), color: '#c8c2f0', align: 'center' }));
+    const kodeHT = 22 + kodeTampilT.length * 17 + 18;
+    const boxTop = y + 52 + kodeHT;
+    txt('TEKS SANDI \u2014 ini yang dipakai ke kurir', x + w / 2, boxTop - 16,
+      { font: FONT_PS(7), color: '#7ae68a', align: 'center' });
     R(x + 40, boxTop, w - 80, boxH, '#0d2a1c'); O(x + 40, boxTop, w - 80, boxH, '#2a6a4a');
     lines.forEach((ln, i) => txt(ln, x + w / 2, boxTop + PY + as + i * lineH,
       { font: FONT_VT(fsz), color: '#7ae68a', align: 'center' }));

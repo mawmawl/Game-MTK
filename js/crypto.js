@@ -68,6 +68,19 @@ const Crypto = {
     return out;
   },
 
+  /* DERET KODE: bentuk perhitungan PERSIS handout (hal. 7-8) -
+     huruf -> angka (A=1..Z=26, a=-1..z=-26, spasi=0) -> f(x) = a*x + b,
+     nilainya DIBIARKAN apa adanya (tanpa diputar/modulo), sama seperti buku
+     yang menuliskan cipherteks sebagai deret angka: 62 -13 -37 ... */
+  deretKode(msg, a, b) {
+    const out = [];
+    for (const c of String(msg || '')) {
+      const x = this.charToVal(c);
+      out.push(x === null ? c : a * x + b);
+    }
+    return out.join(' ');
+  },
+
   /* DESKRIPSI: x = (y - b) . a^-1  (fungsi invers dari f(x) = a x + b) */
   decrypt(msg, a, b) {
     const ai = this.invMod(a);
@@ -103,6 +116,14 @@ const Crypto = {
     if (komposisi) return 'tambah ' + c + ' dulu, lalu kalikan ' + a;
     if (b === 0) return 'kalikan ' + a;
     return 'kalikan ' + a + ', lalu ' + (b < 0 ? 'kurangi ' + Math.abs(b) : 'tambah ' + b);
+  },
+
+  /* Kunci deskripsi dalam bahasa verbal - handout menulisnya begini:
+     "plainteks adalah cipherteks dikurangi dua kemudian dibagi tiga". */
+  fmtVerbalInvers(a, b, c, komposisi) {
+    if (komposisi) return 'bagi ' + a + ' dulu, lalu kurangi ' + c;
+    if (b === 0) return 'bagi ' + a;
+    return (b < 0 ? 'tambah ' + Math.abs(b) : 'kurangi ' + b) + ', lalu bagi ' + a;
   },
 
   /* Tabel kuantifikasi huruf: A=1..Z=26, a=-1..z=-26, spasi=0 */
