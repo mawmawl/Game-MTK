@@ -67,6 +67,7 @@ function buildLevel(idx) {
     player,
     courier: { x: (def.courier.x + .5) * TILE, y: (def.courier.y + 1) * TILE, alpha: 1 },
     enemies: def.enemies.map(e => new Enemy(e)),
+    lasers: (def.lasers || []).map(l => Object.assign({ t: 0 }, l)),
     timer: 0, catches: 0, immunity: 1.2, flash: null, t: 0,
     hitstop: 0, pulse: null,                       // hentakan & denyut tepi layar (efek "kena")
     dialog: null,
@@ -448,6 +449,7 @@ function updateGame(dt) {
     // musuh (dihentikan setelah kurir berangkat: tidak adil kehilangan
     // bintang gara-gara tertangkap di adegan penutup)
     if (!L.courierLeaving) for (const e of L.enemies) e.update(dt, L, p);
+    laserCek(L);
 
     // interaksi
     L.near = nearestInteractable();
@@ -626,6 +628,72 @@ function drawTiles(Ld) {
   }
 }
 
+/* ============ LASER BUNKER (level 4) ============
+   Tiap laser punya siklus: nyala `on` detik, lalu padam sampai `period`.
+   0,7 detik terakhir sebelum nyala dipakai sebagai peringatan berkedip. */
+function laserFase(l, t) {
+  const per = l.period || 3.2, on = l.on || 0.8, off = l.offset || 0;
+  const p = (((t + off) % per) + per) % per;
+  if (p < on) return { nyala: true, awas: false, sisa: on - p };
+  const sampai = per - p;
+  return { nyala: false, awas: sampai <= 0.7, sisa: sampai };
+}
+function laserRect(l) {
+  const vert = l.dir === 'v';
+  const tebal = 8;
+  return vert
+    ? { x: (l.x + 0.5) * TILE - tebal / 2, y: l.y * TILE, w: tebal, h: (l.len || 4) * TILE }
+    : { x: l.x * TILE, y: (l.y + 0.5) * TILE - tebal / 2, w: (l.len || 4) * TILE, h: tebal };
+}
+function laserCek(L) {
+  if (!L.lasers || !L.lasers.length || L.gagal || L.immunity > 0) return;
+  const p = L.player;
+  for (const l of L.lasers) {
+    const f = laserFase(l, L.t);
+    if (!f.nyala) continue;
+    const r = laserRect(l);
+    if (p.x + p.w > r.x && p.x < r.x + r.w && p.y + p.h > r.y && p.y < r.y + r.h) {
+      Particles.text(p.x + 8, p.y - 30, 'SINAR LASER!', '#ff6a5a');
+      /* panggil alur tertangkap yang sama dengan penjaga; musuh tiruan
+         supaya penjaga asli tidak ikut di-reset */
+      onPlayerCaught({ state: 'patrol', susT: 0, loseT: 0, alertFlash: 0,
+                       path: [{ x: 0, y: 0 }], wp: 0, x: -999, y: -999 }, L);
+      return;
+    }
+  }
+}
+function drawLasers(L) {
+  if (!L.lasers || !L.lasers.length) return;
+  for (const l of L.lasers) {
+    const f = laserFase(l, L.t);
+    const r = laserRect(l);
+    const vert = l.dir === 'v';
+    /* titik pancar di kedua ujung (selalu terlihat, biar adil) */
+    const u1 = vert ? { x: r.x + r.w / 2, y: r.y } : { x: r.x, y: r.y + r.h / 2 };
+    const u2 = vert ? { x: r.x + r.w / 2, y: r.y + r.h } : { x: r.x + r.w, y: r.y + r.h / 2 };
+    [u1, u2].forEach(u => {
+      R(u.x - 5, u.y - 5, 10, 10, '#1a0e18');
+      O(u.x - 5, u.y - 5, 10, 10, f.nyala ? '#ff6a5a' : (f.awas ? '#ffb08a' : '#5a3a48'));
+      CIR(u.x, u.y, f.nyala ? 3 : 2, f.nyala ? '#ffd0c0' : (f.awas ? '#ff9a7a' : '#7a4a5a'));
+    });
+    if (f.nyala) {
+      const kedip = 0.82 + Math.sin(L.t * 42) * 0.14;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = 'rgba(255,60,60,' + (0.16 * kedip).toFixed(3) + ')';
+      ctx.fillRect(r.x - 7, r.y - 7, r.w + 14, r.h + 14);
+      ctx.fillStyle = 'rgba(255,120,90,' + (0.45 * kedip).toFixed(3) + ')';
+      ctx.fillRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
+      ctx.restore();
+      R(r.x, r.y + (vert ? 0 : 2), r.w, vert ? r.h : Math.max(2, r.h - 4), '#ff8a6a');
+      R(r.x + (vert ? 2 : 0), r.y + (vert ? 0 : 3), vert ? Math.max(2, r.w - 4) : r.w, vert ? r.h : Math.max(2, r.h - 6), '#ffe6da');
+    } else if (f.awas) {
+      const k = (L.t * 9 % 1) < 0.5 ? 0.55 : 0.14;
+      ctx.fillStyle = 'rgba(255,90,70,' + k + ')';
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+    }
+  }
+}
 function drawLighting(Ld) {
   const th = Ld.def.theme;
   const Z = Camera.zoom;
@@ -729,6 +797,7 @@ function renderGame() {
   ctx.restore();
 
   drawLighting(L);
+  drawLasers(L);
 
   // kilat tertangkap
   if (L.flash) {
