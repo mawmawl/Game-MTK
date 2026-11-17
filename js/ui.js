@@ -310,11 +310,56 @@ function iconLock(x, y, c) {
   ctx.beginPath(); ctx.arc(x + 9, y + 6, 4, Math.PI, 0); ctx.stroke();
   R(x + 8, y + 9, 2, 4, '#1a1428');
 }
+/* ---------- Kartu ACUAN: tabel kuantifikasi + kamus + contoh handout ---------- */
+function barisAcuan(str, x, sy, lebar, warna, ukuran) {
+  const fs = ukuran || 12;
+  const ls = wrap(str, FONT_VT(fs), lebar);
+  ls.forEach((ln, i) => txt(ln, x, sy + i * (fs + 3), { font: FONT_VT(fs), color: warna }));
+  return sy + ls.length * (fs + 3);
+}
+function drawAcuan(jx, y, w, h) {
+  const t = Crypto.kuantifikasi();
+  const lebar = w - 32;
+  let sy = y + 30;
+  txt('ACUAN \u2014 sama dengan handout proyek', jx + 16, sy - 12, { font: FONT_PS(6), color: '#ffe9a8' });
+  txt('TABEL KUANTIFIKASI HURUF', jx + 16, sy, { font: FONT_PS(6), color: '#7ac8ff' });
+  sy += 15;
+  const kol = 6, leb = lebar / kol;
+  for (let i = 0; i < t.length; i++) {
+    const kx = jx + 16 + (i % kol) * leb;
+    const ky = sy + Math.floor(i / kol) * 13;
+    txt(t[i].besar + '=' + t[i].nBesar, kx, ky, { font: FONT_VT(12), color: '#f0ecff' });
+    txt(t[i].kecil + '=' + t[i].nKecil, kx + leb * 0.42, ky, { font: FONT_VT(12), color: '#8ab0d8' });
+  }
+  sy += Math.ceil(t.length / kol) * 13 + 4;
+  sy = barisAcuan('spasi = 0 \u2022 hasil di luar \u221226\u2026+26 diputar (modulo 53)', jx + 16, sy, lebar, '#ffd08a') + 4;
+  txt('KAMUS ISTILAH', jx + 16, sy, { font: FONT_PS(6), color: '#7ac8ff' });
+  sy += 14;
+  sy = barisAcuan('plainteks = pesan asli \u2022 cipherteks = sandi \u2022 deskripsi = buka sandi',
+    jx + 16, sy, lebar, '#c8c2f0') + 2;
+  const cb = Crypto.contohBuku();
+  txt('CONTOH HANDOUT (hal. 8\u20139)', jx + 16, sy, { font: FONT_PS(6), color: '#7ac8ff' });
+  sy += 14;
+  sy = barisAcuan('\u201c' + cb.plainteks + '\u201d \u2192 kunci: ' + Crypto.fmtVerbal(cb.a, cb.b, 0, false),
+    jx + 16, sy, lebar, '#f0ecff') + 2;
+  sy = barisAcuan(Crypto.fmtFn(cb.a, cb.b) + ' \u2192 sandi: ' + cb.cipherteks.slice(0, 20) + '\u2026',
+    jx + 16, sy, lebar, '#7ae68a') + 2;
+  barisAcuan('dibuka dengan f\u207b\u00b9(x) = (x \u2212 ' + cb.b + ') \u00f7 ' + cb.a +
+    ' \u2192 pesannya terbaca lagi', jx + 16, sy, lebar, '#8ab0d8');
+}
+function journalTabs(jx, y, w, h) {
+  const bh = TOUCH ? 30 : 24, by = y + h - bh - 16;
+  button(jx + 14, by, 104, bh, '\u25c0 MISI', () => { if (L.journalPage !== 0) { L.journalPage = 0; SFX.uiBack(); } }, { size: 6 });
+  button(jx + w - 118, by, 104, bh, 'ACUAN \u25b6', () => { if (L.journalPage !== 1) { L.journalPage = 1; SFX.paper(); } }, { size: 6 });
+  txt('halaman ' + ((L.journalPage | 0) + 1) + ' / 2', jx + w / 2, by - 12,
+    { font: FONT_VT(12), color: '#8a84b8', align: 'center' });
+}
 function drawJournal(L) {
   const w = 320, h = VH - 30, x = VW - w - 8, y = 15;
   const slide = L.journalA ?? 1;
   const jx = x + (1 - slide) * 60;
   panel(jx, y, w, h, { title: 'JURNAL AGEN', accent: '#e8c04a', bg: '#1a1532', close: () => { L.journal = false; SFX.uiBack(); } });
+  if (L.journalPage === 1) { drawAcuan(jx, y, w, h); journalTabs(jx, y, w, h); return; }
 
   // ukuran huruf sandi menyesuaikan LEBAR terukurnya (sandi tidak punya spasi,
   // jadi wrap biasa tidak bisa memotongnya), lalu tingginya ikut jumlah baris
@@ -332,7 +377,9 @@ function drawJournal(L) {
           hint: 'Periksa benda di ruangan [E]' }
       : { title: 'PESAN RAHASIA', hh: 70, fsz: 19, col: '#f0ecff', body: '', ok: false },
     { title: 'CATATAN FUNGSI', hh: L.komposisi ? 96 : 70, fsz: L.komposisi ? 15 : 19, col: '#f0ecff',
-      body: L.found.note ? Crypto.fmtFn(L.a, L.b) : 'Belum ditemukan...',
+      body: L.found.note
+        ? Crypto.fmtFn(L.a, L.b) + '  =  ' + Crypto.fmtVerbal(L.a, L.b, L.c, L.komposisi)
+        : 'Belum ditemukan...',
       rows: (L.found.note && L.komposisi) ? Crypto.fmtKomposisi(L.a, L.c) : null,
       ok: L.found.note, hint: 'Cari kertas catatan tersembunyi' },
     hanyaBuka
@@ -372,8 +419,7 @@ function drawJournal(L) {
     }
     sy += hh + 8;
   });
-  if (TOUCH) button(jx + w / 2 - 80, y + h - 44, 160, 32, 'TUTUP', () => { L.journal = false; SFX.uiBack(); }, { size: 7 });
-  else txt('TAB — tutup jurnal', jx + w / 2, y + h - 12, { font: FONT_VT(14), color: '#8a84b8', align: 'center' });
+  journalTabs(jx, y, w, h);
 }
 
 /* ---------- Panel Mesin Enkripsi ---------- */

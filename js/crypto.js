@@ -97,6 +97,34 @@ const Crypto = {
     return ['g(x) = x + ' + c, 'h(x) = ' + a + 'x', 'f(x) = h(g(x))'];
   },
 
+  /* Kunci dalam bahasa verbal — handout proyek: "unsur simbolik pada fungsi
+     enkripsi dirubah menjadi unsur verbal". Dipakai di jurnal & kartu ACUAN. */
+  fmtVerbal(a, b, c, komposisi) {
+    if (komposisi) return 'tambah ' + c + ' dulu, lalu kalikan ' + a;
+    if (b === 0) return 'kalikan ' + a;
+    return 'kalikan ' + a + ', lalu ' + (b < 0 ? 'kurangi ' + Math.abs(b) : 'tambah ' + b);
+  },
+
+  /* Tabel kuantifikasi huruf: A=1..Z=26, a=-1..z=-26, spasi=0 */
+  kuantifikasi() {
+    const baris = [];
+    for (let i = 0; i < 26; i++) {
+      baris.push({
+        besar: String.fromCharCode(65 + i), nBesar: i + 1,
+        kecil: String.fromCharCode(97 + i), nKecil: -(i + 1)
+      });
+    }
+    return baris;
+  },
+
+  /* Contoh yang sama dengan handout (hal. 8-9): "Temui Aku Di Taman" dengan
+     kunci f(x) = 3x + 2. Hitungnya memakai mesin game sendiri, jadi angkanya
+     pasti konsisten dengan level yang dimainkan. */
+  contohBuku() {
+    const p = 'Temui Aku Di Taman', a = 3, b = 2;
+    return { plainteks: p, a, b, cipherteks: this.encrypt(p, a, b) };
+  },
+
   /* Pool pesan keluar per level — hanya huruf & spasi */
   pools: {
     1: [

@@ -72,7 +72,7 @@ function buildLevel(idx) {
     dialog: null,
     machine: { open: false, phase: 'input', fa: '', fb: '', focus: 'a', msg: null, workT: 0, resultText: '', revT: 0 },
     courierUI: { open: false, value: '', msg: null, shakeT: 0 },
-    journal: false, journalA: 0, pause: null, courierLeaving: null, resultsGiven: false
+    journal: false, journalA: 0, journalPage: 0, pause: null, courierLeaving: null, resultsGiven: false
   };
   Camera.snap(player.x, player.y, L.roomW, L.roomH);
   Music.set(def.themeMusic);
@@ -448,7 +448,7 @@ function updateGame(dt) {
     // interaksi
     L.near = nearestInteractable();
     if (Input.press('e', 'E', ' ') && L.near) interact(L.near);
-    if (Input.press('Tab')) { L.journal = true; L.journalA = 0; SFX.paper(); }
+    if (Input.press('Tab')) { L.journal = true; L.journalA = 0; L.journalPage = 0; SFX.paper(); }
     if (Input.press('Escape')) { L.pause = { idx: 0 }; SFX.uiSelect(); }
 
     // kurir pergi (level selesai)
