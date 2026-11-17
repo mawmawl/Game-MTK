@@ -20,7 +20,11 @@ const UI = {
 };
 
 /* ---------- Salin ke clipboard (dengan fallback) ---------- */
+/* Salin: tulis ke clipboard OS (kalau diizinkan) DAN ingat teksnya di
+   window.__copiedText. Ingatan internal inilah yang dipakai tombol TEMPEL,
+   jadi salin-tempel tetap jalan walau browser menolak akses clipboard. */
 function copyText(str) {
+  window.__copiedText = String(str || '');
   const done = () => { window.__copiedT = performance.now(); SFX.sparkle(); };
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(str).then(done).catch(() => fallbackCopy(str, done));
@@ -39,6 +43,34 @@ function fallbackCopy(str, done) {
   } catch (e) { /* lingkungan tanpa clipboard: abaikan */ }
 }
 function copiedRecently() { return window.__copiedT && performance.now() - window.__copiedT < 1500; }
+/* TEMPEL: ambil dari salinan terakhir (clipboard internal game). Aman:
+   tidak pernah melempar, jadi klik tombol tidak bisa mematikan loop game. */
+function tempelKeKurir(C) {
+  try {
+    const t = String(window.__copiedText || '');
+    if (!t) { C.msg = { text: 'Belum ada yang kau salin. Salin dulu dari mesin atau jurnal.', c: '#ffb0a0' }; SFX.deny(); return; }
+    C.value = t.replace(/[^a-zA-Z ]/g, '').slice(0, 120);
+    C.msg = { text: 'Ditempel dari salinan terakhir.', c: '#7ae68a' };
+    SFX.paper();
+  } catch (e) { C.msg = { text: 'Gagal menempel, salin ulang dari mesin/jurnal.', c: '#ffb0a0' }; }
+}
+/* Ctrl/Cmd+V: tempel papan klip OS ke kolom kurir (huruf/spasi) atau ke
+   kolom a/b mesin (angka). Hanya saat panel yang bersangkutan terbuka. */
+window.addEventListener('paste', (e) => {
+  try {
+    const cd = e.clipboardData || window.clipboardData;
+    const t = cd ? (cd.getData('text') || '') : '';
+    if (!t) return;
+    if (typeof L !== 'undefined' && L && L.courierUI && L.courierUI.open) {
+      L.courierUI.value = t.replace(/[^a-zA-Z ]/g, '').slice(0, 120);
+      L.courierUI.msg = { text: 'Ditempel dari papan klip.', c: '#7ae68a' };
+      SFX.paper(); e.preventDefault();
+    } else if (typeof L !== 'undefined' && L && L.machine && L.machine.open) {
+      const angka = t.replace(/[^0-9\-]/g, '').slice(0, 4);
+      if (angka) { L.machine[L.machine.focus === 'a' ? 'fa' : 'fb'] = angka; SFX.type(); e.preventDefault(); }
+    }
+  } catch (err) { /* abaikan */ }
+});
 
 /* ---------- Penyesuaian huruf agar teks selalu muat (sandi = satu kata panjang) ---------- */
 /* pilih ukuran huruf terbesar dari daftar yang masih muat dalam maxW */
@@ -477,7 +509,7 @@ function drawCourierUI(C) {
   // dibatasi lebarnya: pesan panjang tidak boleh menabrak penghitung huruf di kanan
   if (C.msg) txt(C.msg.text, x + 26, y + 100, { font: FONT_VT(16), color: C.msg.c, maxWidth: w - 224 });
   txt(C.value.length + ' / ' + teksTargetKurir().length + ' huruf', x + w - 26, y + 100, { font: FONT_VT(14), color: '#8a84b8', align: 'right' });
-  button(x + 26, y + 138, 152, 28, 'ISI OTOMATIS', () => { C.value = L.masukAda ? '' : (L.encrypted || ''); C.msg = null; SFX.paper(); }, { size: 7 });
+  button(x + 26, y + 138, 152, 28, 'TEMPEL', () => tempelKeKurir(C), { size: 7 });
   button(x + 190, y + 138, 118, 28, 'HAPUS', () => { C.value = ''; SFX.uiBack(); }, { size: 7 });
   button(x + 320, y + 138, 174, 28, 'KIRIM (ENTER)', () => submitCourier(C), { size: 7 });
   txt('Esc: batal • TAB: lihat jurnal', x + w / 2, y + h - 10, { font: FONT_VT(13), color: '#5a5488', align: 'center' });
@@ -806,9 +838,8 @@ function drawCourierTouch(C) {
     () => { TouchUI.cap = !TouchUI.cap; SFX.uiMove(); },
     { size: 8, accent: '#7ac8ff', focused: TouchUI.cap });
   bx2 += kw + gp;
-  vbutton(bx2, by2, 2 * kw + gp, kh, 'ISI OTOMATIS', () => {
-    C.value = L.encrypted || ''; C.msg = null; SFX.paper();
-  }, { size: 6, accent: '#e8a44a' });
+  vbutton(bx2, by2, 2 * kw + gp, kh, 'TEMPEL', () => tempelKeKurir(C),
+    { size: 7, accent: L.def.accent || '#e8a44a' });
   bx2 += 2 * (kw + gp);
   vbutton(bx2, by2, kw, kh, 'HAPUS', () => { C.value = ''; SFX.uiBack(); }, { size: 6, accent: '#c0563f' });
   bx2 += kw + gp;
