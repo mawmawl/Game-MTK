@@ -25,6 +25,11 @@ class Enemy {
     this.walk = 0;
     this.alertFlash = 0;
     this.look = def.look || null;    // 'guard' = satpam hi-vis, null = mata-mata
+    /* pengawas macet: kalau jalur ke waypoint tertahan perabot, penjaga
+       harus mengambil waypoint berikutnya, bukan mendorong dinding terus. */
+    this.stuckT = 0;
+    this.lastX = this.x;
+    this.lastY = this.y;
   }
 
   eye() { return { x: this.x, y: this.y - 10 }; }
@@ -115,7 +120,42 @@ class Enemy {
       this.fx = this.vx / sp; this.fy = this.vy / sp;
       this.walk += sp * dt * 0.22;
     }
+    /* --- pengawas macet (hanya saat patroli; mengejar tidak dihitung) --- */
+    const gerak = Math.hypot(this.x - this.lastX, this.y - this.lastY);
+    this.lastX = this.x; this.lastY = this.y;
+    if (this.state === 'patrol') {
+      if (gerak < spd * dt * 0.3) this.stuckT += dt;
+      else this.stuckT = Math.max(0, this.stuckT - dt * 2);
+      if (this.stuckT > 0.7) {
+        this.wp = (this.wp + 1) % this.path.length;
+        this.stuckT = 0;
+        /* kalau dua kali berturut-turut gagal, pindahkan ke waypoint terdekat
+           yang benar-benar kosong supaya penjaga tidak berputar di tempat */
+        this.gagalWp = (this.gagalWp || 0) + 1;
+        if (this.gagalWp >= 3) { this.gagalWp = 0; this.snapKeJalur(level); }
+      } else if (gerak > 4) this.gagalWp = 0;
+    } else { this.stuckT = 0; this.gagalWp = 0; }
+
     this.updateAlertFlash(dt);
+  }
+
+  /* pindah ke waypoint terdekat yang kotaknya tidak menabrak apa pun */
+  snapKeJalur(level) {
+    let best = null, bd = 1e9;
+    for (const q of this.path) {
+      if (this.kotakBentrok(q.x, q.y, level)) continue;
+      const d = dist(this.x, this.y, q.x, q.y);
+      if (d < bd) { bd = d; best = q; }
+    }
+    if (best) { this.x = best.x; this.y = best.y; this.wp = this.path.indexOf(best); this.stuckT = 0; }
+  }
+  kotakBentrok(cx, cy, level) {
+    const hw = this.w / 2, hh = this.h / 2;
+    const r = { x: cx - hw, y: cy - hh, w: this.w, h: this.h };
+    for (const s of level.solidRects || []) {
+      if (r.x < s.x + s.w && r.x + r.w > s.x && r.y < s.y + s.h && r.y + r.h > s.y) return true;
+    }
+    return false;
   }
 
   updateAlertFlash(dt) { if (this.alertFlash > 0) this.alertFlash -= dt; }
