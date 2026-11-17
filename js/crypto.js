@@ -110,6 +110,11 @@ const Crypto = {
       'Rapat siswa sore ini', 'Ambil kunci laboratorium',
       'Tulis sandi di papan', 'Panggil kepala sekolah'
     ],
+    4: [
+      'Pintu bunker dikunci dari dalam', 'Ambil peta lorong bawah tanah',
+      'Generator cadangan ada di ruang dua', 'Jangan nyalakan lampu utama',
+      'Kurir kedua menunggu di luar', 'Bawa kunci cadangan ke markas'
+    ],
     3: [
       'Reaktor utama tidak stabil malam ini', 'Hancurkan semua catatan eksperimen rahasia',
       'Drone keamanan sedang diperbaiki', 'Pintu darurat terbuka tengah malam',
@@ -129,6 +134,11 @@ const Crypto = {
       'Markas butuh daftar nama', 'Ambil berkas di loker', 'Jangan lewat lorong',
       'Temui kontak di kantin', 'Kelas delapan kosong', 'Kirim laporan tertulis'
     ],
+    4: [
+      'Bunker sudah ditemukan', 'Tahan posisi sampai pagi',
+      'Kirim kunci cadangan sekarang', 'Musuh menuju lorong bawah',
+      'Kode lama tidak berlaku lagi', 'Tunggu kurir berikutnya'
+    ],
     3: [
       'Markas utama sudah tahu', 'Tarik semua kurir keluar', 'Rencana dibatalkan malam ini',
       'Dokumen biru palsu', 'Musuh sudah masuk lab', 'Tunggu sinyal kedua'
@@ -143,11 +153,14 @@ const Crypto = {
     const masukAsli = spick(this.masuk[level]);
     let a, b, c = 0, komposisi = false;
     if (level === 1) {
-      a = 1;                                  // geser: f(x) = x + b
+      a = 1;                                  // L1 ENKRIPSI : geser f(x) = x + b
       b = sri(1, 25);
     } else if (level === 2) {
-      a = sri(2, 9);                          // f(x) = a x + b
-      b = sri(1, 30);
+      a = sri(2, 9);                          // L2 DESKRIPSI: kali murni f(x) = a x
+      b = 0;                                  // (invers: bagi dengan a)
+    } else if (level === 3) {
+      a = sri(2, 9);                          // L3 INVERS  : f(x) = a x + b
+      b = sri(1, 20);                         // (b tidak 0 supaya inversnya terasa)
     } else {
       a = sri(2, 9);                          // komposisi: g(x)=x+c, h(y)=a y
       c = sri(2, 12);

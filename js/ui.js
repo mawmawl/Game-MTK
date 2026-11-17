@@ -128,14 +128,22 @@ function drawTextInput(x, y, w, h, value, focused, o = {}) {
 function drawHUD(L) {
   const def = L.def;
   // panel objektif kiri atas
-  const objs = [
-    ['Temukan pesan', L.found.message],
-    ['Temukan fungsi', L.found.note],
-    ['Enkripsi pesan', L.found.enc],
-    ['Antar ke kurir', !!L.masukAda],
-    ['Buka balasan', !!L.hasilDeskripsi],
-    ['Antar balasan', !!L.resultsGiven]
-  ];
+  const role = L.def.kerja;
+  const objs = role === 'dec' || role === 'inv'
+    ? [['Temukan fungsi', L.found.note],
+       ['Buka sandi masuk', !!L.hasilDeskripsi],
+       ['Antar ke kurir', !!L.resultsGiven]]
+    : role === 'komposisi'
+    ? [['Temukan pesan', L.found.message],
+       ['Temukan fungsi', L.found.note],
+       ['Susun komposisi', L.found.enc],
+       ['Antar ke kurir', !!L.masukAda],
+       ['Buka balasan', !!L.hasilDeskripsi],
+       ['Antar balasan', !!L.resultsGiven]]
+    : [['Temukan pesan', L.found.message],
+       ['Temukan fungsi', L.found.note],
+       ['Enkripsi pesan', L.found.enc],
+       ['Antar ke kurir', !!L.resultsGiven]];
   const rowH = 15, W = 178, H = 28 + objs.length * rowH;
   R(8, 8, W, H, 'rgba(10,8,24,0.74)');
   O(8, 8, W, H, 'rgba(140,120,230,0.4)');
@@ -282,13 +290,23 @@ function drawJournal(L) {
   const efsz = sandiAktif ? fitFont(sandiAktif, [22, 20, 18, 17, 16, 15, 14], avail, FONT_VT) : 22;
   const encLines = sandiAktif ? wrapHard(sandiAktif, FONT_VT(efsz), avail) : [];
 
+  const roleJ = L.def.kerja, hanyaBuka = (roleJ === 'dec' || roleJ === 'inv');
   const sections = [
-    { title: 'PESAN RAHASIA', hh: 70, fsz: 19, col: '#f0ecff', body: '', ok: false },
+    hanyaBuka
+      ? { title: 'SURAT MASUK (sandi dari markas)',
+          hh: sandiAktif ? Math.max(70, 36 + encLines.length * (efsz + 4)) : 70,
+          fsz: efsz, col: '#7ac8ff', body: sandiAktif || '???', ok: !!sandiAktif,
+          hint: 'Markas belum mengirim apa pun' }
+      : { title: 'PESAN RAHASIA', hh: 70, fsz: 19, col: '#f0ecff', body: '', ok: false },
     { title: 'CATATAN FUNGSI', hh: L.komposisi ? 96 : 70, fsz: L.komposisi ? 15 : 19, col: '#f0ecff',
       body: L.found.note ? Crypto.fmtFn(L.a, L.b) : 'Belum ditemukan...',
       rows: (L.found.note && L.komposisi) ? Crypto.fmtKomposisi(L.a, L.c) : null,
       ok: L.found.note, hint: 'Cari kertas catatan tersembunyi' },
-    L.masukAda
+    hanyaBuka
+      ? { title: 'HASIL DESKRIPSI', hh: 76, fsz: 17, col: '#7ae68a',
+          body: L.hasilDeskripsi || '???', ok: !!L.hasilDeskripsi,
+          hint: 'Pakai mesin: mode ' + (roleJ === 'inv' ? 'INVERS' : 'DESKRIPSI') }
+      : L.masukAda
       ? { title: 'SURAT MASUK \u2014 BUKA DENGAN FUNGSI INVERS',
           hh: sandiAktif ? Math.max(70, 36 + encLines.length * (efsz + 4)) : 70,
           fsz: efsz, col: '#7ac8ff', body: sandiAktif || '???', ok: !!sandiAktif,
@@ -335,8 +353,8 @@ function drawMachineUI(M) {
 
   if (M.phase === 'input') {
     const mode = machineMode();
-    txt(mode === 'dec' ? 'MODE: DESKRIPSI (fungsi invers)' : 'MODE: ENKRIPSI',
-      x + w / 2, cy - 4, { font: FONT_PS(7), color: mode === 'dec' ? '#7ac8ff' : '#7ae68a', align: 'center' });
+    txt(modeLabel(), x + w / 2, cy - 4,
+      { font: FONT_PS(7), color: mode === 'dec' ? '#7ac8ff' : '#7ae68a', align: 'center' });
     txt(L.komposisi ? 'Masukkan a (dari h) dan c (dari g):' : 'Masukkan parameter sesuai catatan fungsi:',
       x + w / 2, cy + 12, { font: FONT_VT(16), color: '#a8c8d8', align: 'center' });
     cy += 26;
@@ -713,8 +731,8 @@ function drawMachineTouch(M) {
 
   /* ---- input a & b ---- */
   const modeT = machineMode();
-  txt(modeT === 'dec' ? 'MODE: DESKRIPSI (fungsi invers)' : 'MODE: ENKRIPSI',
-    x + w / 2, y + 40, { font: FONT_PS(8), color: modeT === 'dec' ? '#7ac8ff' : '#7ae68a', align: 'center' });
+  txt(modeLabel(), x + w / 2, y + 40,
+    { font: FONT_PS(8), color: modeT === 'dec' ? '#7ac8ff' : '#7ae68a', align: 'center' });
   txt(L.komposisi ? 'Masukkan a (dari h) dan c (dari g):' : 'Masukkan a dan b sesuai catatan fungsi:',
     x + 30, y + 60, { font: FONT_VT(17), color: '#a8c8d8' });
   const fw = 210;

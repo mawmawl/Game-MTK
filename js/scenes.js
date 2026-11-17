@@ -60,7 +60,8 @@ function buildLevel(idx) {
     message: puzzle.message, a: puzzle.a, b: puzzle.b, encrypted: null,
     // revisi: tiap level beda fungsi + tugas deskripsi + nyawa
     c: puzzle.c, komposisi: puzzle.komposisi,
-    masukAsli: puzzle.masukAsli, masukSandi: puzzle.masukSandi, masukAda: false,
+    masukAsli: puzzle.masukAsli, masukSandi: puzzle.masukSandi,
+    masukAda: (def.kerja === 'dec' || def.kerja === 'inv'),
     hasilDeskripsi: null, lives: 3, livesMax: 3, gagal: false,
     found: { message: false, note: false, enc: false }, delivered: false,
     player,
@@ -177,7 +178,18 @@ function interact(o) {
    ============================================================ */
 /* label parameter: level 3 memakai g(x)=x+c dan h(y)=a y (KOMPOSISI) */
 function paramLabels() { return L.komposisi ? ['a', 'c'] : ['a', 'b']; }
-function machineMode() { return L.masukAda ? 'dec' : 'enc'; }
+function machineMode() {
+  const k = L.def.kerja;
+  if (k === 'dec' || k === 'inv') return 'dec';
+  if (k === 'komposisi') return L.masukAda ? 'dec' : 'enc';
+  return 'enc';
+}
+/* tulisan mode di panel mesin */
+function modeLabel() {
+  const k = L.def.kerja;
+  if (k === 'inv') return 'MODE: INVERS  f\u207b\u00b9(x) = (x - b) : a';
+  return machineMode() === 'dec' ? 'MODE: DESKRIPSI (fungsi invers)' : 'MODE: ENKRIPSI';
+}
 
 function submitMachine(M) {
   const L3 = L.komposisi;
@@ -392,7 +404,7 @@ function updateGame(dt) {
       const tx = (door.x + door.w / 2) * TILE;
       L.courier.x = lerp(L.courier.x, tx, dt * 2.2);
       L.courier.alpha = clamp(1 - (L.courierLeaving.t - .5) / .8, 0, 1);
-      if (L.courierLeaving.t > 1.5 && !L.masukAda) {
+      if (L.courierLeaving.t > 1.5 && L.def.kerja === 'komposisi' && !L.masukAda) {
         // kiriman pertama aman -> kurir kembali membawa surat balasan markas
         L.masukAda = true;
         L.courierLeaving = null;
@@ -737,7 +749,7 @@ function computeResults() {
   if (newBest) best.score = score;
   if (stars > best.stars) best.stars = stars;
   G.save.best[key] = best;
-  G.save.unlocked = Math.max(G.save.unlocked, Math.min(3, L.defIndex + 2));
+  G.save.unlocked = Math.max(G.save.unlocked, Math.min(LEVELS.length, L.defIndex + 2));
   persist();
   Music.set('title');
   Scenes.go('results', { level: L.defIndex, stars, score, time: t, catches: c, best, newBest, playedStars: 0, rT: 0, sel: 0 });
@@ -1193,12 +1205,12 @@ const Scenes = {
         }
         d.idx = d.idx ?? 0;
         if (d.idx > 2 || d.idx < 0) d.idx = 0;
-        if (Input.press('ArrowUp', 'w', 'W')) { d.idx = (d.idx + 2) % 3; SFX.uiMove(); }
-        if (Input.press('ArrowDown', 's', 'S')) { d.idx = (d.idx + 1) % 3; SFX.uiMove(); }
+        if (Input.press('ArrowUp', 'w', 'W')) { d.idx = (d.idx + LEVELS.length - 1) % LEVELS.length; SFX.uiMove(); }
+        if (Input.press('ArrowDown', 's', 'S')) { d.idx = (d.idx + 1) % LEVELS.length; SFX.uiMove(); }
         if (Input.press('Enter', 'e', 'E', ' ')) {
           SFX.uiSelect();
-          if (d.idx === 0) startLevel(Math.min(G.save.unlocked, 3) - 1);
-          else if (d.idx === 1) Scenes.go('select', { idx: Math.min(G.save.unlocked, 3) - 1 });
+          if (d.idx === 0) startLevel(Math.min(G.save.unlocked, LEVELS.length) - 1);
+          else if (d.idx === 1) Scenes.go('select', { idx: Math.min(G.save.unlocked, LEVELS.length) - 1 });
           else Scenes.go('how', { page: 0 });
         }
       },
@@ -1214,8 +1226,8 @@ const Scenes = {
         const opts = ['MULAI', 'PILIH LEVEL', 'CARA MAIN'];
         opts.forEach((o, i) => {
           luxButton(VW / 2 - 92, 196 + i * 42, 184, 32, o, () => {
-            if (i === 0) startLevel(Math.min(G.save.unlocked, 3) - 1);
-            else if (i === 1) Scenes.go('select', { idx: Math.min(G.save.unlocked, 3) - 1 });
+            if (i === 0) startLevel(Math.min(G.save.unlocked, LEVELS.length) - 1);
+            else if (i === 1) Scenes.go('select', { idx: Math.min(G.save.unlocked, LEVELS.length) - 1 });
             else Scenes.go('how', { page: 0 });
           }, {
             focused: d.idx === i,
@@ -1239,9 +1251,9 @@ const Scenes = {
         checkMute();
         d.idx = d.idx ?? 0;
         d.t = (d.t || 0) + dt;                    // untuk animasi kartu masuk
-        if (d.idx > 2 || d.idx < 0) d.idx = Math.min(G.save.unlocked, 3) - 1;
-        if (Input.press('ArrowLeft', 'a', 'A')) { d.idx = (d.idx + 2) % 3; SFX.uiMove(); }
-        if (Input.press('ArrowRight', 'd', 'D')) { d.idx = (d.idx + 1) % 3; SFX.uiMove(); }
+        if (d.idx > LEVELS.length - 1 || d.idx < 0) d.idx = Math.min(G.save.unlocked, LEVELS.length) - 1;
+        if (Input.press('ArrowLeft', 'a', 'A')) { d.idx = (d.idx + LEVELS.length - 1) % LEVELS.length; SFX.uiMove(); }
+        if (Input.press('ArrowRight', 'd', 'D')) { d.idx = (d.idx + 1) % LEVELS.length; SFX.uiMove(); }
         if (Input.press('Escape')) { Scenes.go('title'); SFX.uiBack(); }
         if (Input.press('Enter', 'e', 'E', ' ')) {
           if (d.idx < G.save.unlocked) { SFX.uiSelect(); startLevel(d.idx); }
@@ -1254,16 +1266,19 @@ const Scenes = {
         ctx.fillStyle = 'rgba(8,6,18,0.72)'; ctx.fillRect(0, 0, VW, VH);
         txt('PILIH LEVEL', VW / 2, 44, { font: FONT_PS(16), color: '#ffd75e', align: 'center', shadow: 'rgba(0,0,0,.8)' });
         UI.begin();
-        const names = ['KAMAR', 'SEKOLAH', 'LAB RUSAK'];
-        const subs = ['Malam Pertama', 'Koridor yang Diawasi', 'Misi Terakhir'];
-        const cols = ['#b0785a', '#7fa8c9', '#3ee6d8'];
-        for (let i = 0; i < 3; i++) {
+        const names = LEVELS.map(d => d.name.toUpperCase());
+        const subs = LEVELS.map(d => d.subtitle);
+        const cols = ['#b0785a', '#7fa8c9', '#3ee6d8', '#b06ad8'];
+        const nLv = LEVELS.length;
+        const cw = nLv > 3 ? 138 : 160, gap = nLv > 3 ? 12 : 20;
+        const startX = VW / 2 - (nLv * cw + (nLv - 1) * gap) / 2;
+        for (let i = 0; i < nLv; i++) {
           // kartu naik satu per satu saat layar dibuka
           const tp = Scenes.data.t || 1;
           const enter = easeOutCubic(clamp((tp - i * 0.07) / 0.34, 0, 1));
           const focused0 = Scenes.data.idx === i;
           const bob = focused0 && enter >= 1 ? Math.sin(performance.now() / 420) * 2 : 0;
-          const x = VW / 2 - 270 + i * 180, y = 84 + (1 - enter) * 36 + bob, w = 160, h = 190;
+          const x = startX + i * (cw + gap), y = 84 + (1 - enter) * 36 + bob, w = cw, h = nLv > 3 ? 178 : 190;
           const unlocked = i < G.save.unlocked;
           const focused = Scenes.data.idx === i;
           R(x + 4, y + 6, w, h, 'rgba(0,0,0,0.5)');

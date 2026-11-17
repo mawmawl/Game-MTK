@@ -1,4 +1,7 @@
 'use strict';
+
+
+
 /* ============================================================
    SECRET MAIL — levels.js
    Definisi 3 level: peta tile, objek, palet tema, musuh, intro.
@@ -10,7 +13,7 @@ const LEVELS = [
 
   /* ============ LEVEL 1 — KAMAR ============ */
   {
-    name: 'Kamar', subtitle: 'Malam Pertama', themeMusic: 'bedroom', target: 150,
+    name: 'Kamar', subtitle: 'Malam Pertama', themeMusic: 'bedroom', target: 150, kerja: 'enc',
     w: 24, h: 14,
     map: [
       '########################',
@@ -80,7 +83,7 @@ const LEVELS = [
 
   /* ============ LEVEL 2 — SEKOLAH ============ */
   {
-    name: 'Sekolah', subtitle: 'Koridor yang Diawasi', themeMusic: 'school', target: 240,
+    name: 'Sekolah', subtitle: 'Koridor yang Diawasi', themeMusic: 'school', target: 210, kerja: 'dec',
     w: 30, h: 16,
     map: [
       '##############################',
@@ -162,7 +165,7 @@ const LEVELS = [
 
   /* ============ LEVEL 3 — LAB RUSAK ============ */
   {
-    name: 'Lab Rusak', subtitle: 'Misi Terakhir', themeMusic: 'lab', target: 330,
+    name: 'Lab Rusak', subtitle: 'Kunci Terbalik', themeMusic: 'lab', target: 240, kerja: 'inv',
     w: 30, h: 16,
     map: [
       '##############################',
@@ -242,3 +245,11 @@ const LEVELS = [
     ]
   }
 ];
+
+/* ============================================================
+   CATATAN (belum selesai): LEVEL 4 — BUNKER (KOMPOSISI)
+   Peta turunan cermin dari Lab sudah dirancang, tetapi buildLevel()
+   masih gagal saat membangunnya (penyebab belum ketemu: kandidat
+   utama jalur musuh / playerStart hasil cermin). Level 4 dimatikan
+   dulu supaya tidak ada level yang bisa dipilih tetapi rusak.
+   ============================================================ */
