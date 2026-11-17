@@ -134,7 +134,11 @@ function interact(o) {
       if (!L.found.message) miss.push('PESAN RAHASIA');
       if (!L.found.note) miss.push('CATATAN FUNGSI');
       openDialog('Mesin Enkripsi', 'Brr... Aku masih kosong. Bawakan aku ' + miss.join(' dan ') + ' dulu! Periksa objek-objek di ruangan ini [E].');
-    } else if (L.encrypted) {
+    } else if (L.encrypted && !(L.masukAda && !L.hasilDeskripsi)) {
+      /* Di level komposisi, L.encrypted terisi pada tahap 1. Setelah kurir
+         kembali membawa balasan (L.masukAda) mesin HARUS bisa dibuka lagi
+         untuk tahap invers. Dulu syaratnya hanya `L.encrypted`, sehingga
+         mesin terkunci permanen di level 4. */
       openDialog('Mesin Enkripsi', 'Pesanmu sudah terenkripsi dan tersimpan di jurnal [TAB]. Antar segera ke kurir di dekat pintu!');
     } else {
       L.machine.open = true; L.machine.phase = 'input';
