@@ -273,15 +273,6 @@ const LEVELS = [
     ]).map(e => Object.assign({}, e, {
       path: (e.path || []).map(q => [cerminX(q[0]), q[1]])
     })),
-    /* LASER bunker: muncul tiap beberapa detik, sempat berkedip sebagai
-       peringatan sebelum menyala. Menyentuh sinar = tertangkap (nyawa -1).
-       dir 'h' = mendatar, 'v' = menegak. len dalam satuan tile. */
-    lasers: [
-      { x: 3,  y: 6,  len: 6, dir: 'h', period: 3.0, on: 0.75, offset: 0.0 },
-      { x: 12, y: 9,  len: 7, dir: 'h', period: 3.6, on: 0.85, offset: 1.4 },
-      { x: 17, y: 12, len: 6, dir: 'h', period: 4.0, on: 0.90, offset: 2.4 },
-      { x: 14, y: 3,  len: 5, dir: 'v', period: 3.4, on: 0.70, offset: 0.7 }
-    ],
     intro: ['Markas musuh ternyata di bawah tanah.',
             'Kali ini DUA rumus dipakai berurutan: g(x) = x + c lalu h(y) = a y.',
             'Susun komposisinya, buka sandinya, lalu kirim balasan yang benar.']
