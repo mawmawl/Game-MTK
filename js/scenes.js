@@ -1636,7 +1636,7 @@ const Scenes = {
           if (Input.press('Enter', 'e', 'E', ' ')) {
             SFX.uiSelect();
             if (d.sel === 0) {
-              if (d.level < 2) startLevel(d.level + 1);
+              if (d.level < LEVELS.length - 1) startLevel(d.level + 1);
               else Scenes.go('ending');
             } else if (d.sel === 1) Scenes.go('game', { level: d.level, rebuild: true });
             else { Scenes.go('title'); }
@@ -1689,9 +1689,9 @@ const Scenes = {
           txt('★ REKOR BARU! ★', x + w / 2, y + 202, { font: FONT_PS(8), color: '#7ae68a', align: 'center' });
         else
           txt('target waktu: ' + fmtTime(LEVELS[d.level].target), x + w / 2, y + 202, { font: FONT_VT(14), color: '#5a5488', align: 'center' });
-        const opts = [d.level < 2 ? 'LEVEL BERIKUT ▸' : 'TAMAT ▸', 'ULANGI', 'MENU'];
+        const opts = [d.level < LEVELS.length - 1 ? 'LEVEL BERIKUT ▸' : 'TAMAT ▸', 'ULANGI', 'MENU'];
         opts.forEach((o, i) => button(x + 24 + i * 132, y + h - 46, 122, 30, o, () => {
-          if (i === 0) { if (d.level < 2) startLevel(d.level + 1); else Scenes.go('ending'); }
+          if (i === 0) { if (d.level < LEVELS.length - 1) startLevel(d.level + 1); else Scenes.go('ending'); }
           else if (i === 1) Scenes.go('game', { level: d.level, rebuild: true });
           else Scenes.go('title');
         }, { focused: d.sel === i }));
@@ -1753,16 +1753,19 @@ const Scenes = {
           g.restore();
         }
         let total = 0;
-        for (let i = 1; i <= 3; i++) total += (G.save.best['lv' + i] || { stars: 0 }).stars;
+        for (let i = 1; i <= LEVELS.length; i++) total += (G.save.best['lv' + i] || { stars: 0 }).stars;
         // bintang meletup satu per satu
-        for (let i = 0; i < 9; i++) {
+        const nBintang = LEVELS.length * 3;
+        const x0 = VW / 2 - (nBintang - 1) * 9;      // 12 bintang di L4 tetap terpusat
+        for (let i = 0; i < nBintang; i++) {
           const p = clamp((et - 0.55 - i * 0.07) / 0.28, 0, 1);
           if (p <= 0) continue;
           const full = i < total;
           const r = easeOutBack(p) * (full ? 5 : 3);
-          if (r > 0) drawStar(VW / 2 - 46 + i * 18, 214, r, full ? '#ffd75e' : 'rgba(255,255,255,0.15)');
+          if (r > 0) drawStar(x0 + i * 18, 214, r, full ? '#ffd75e' : 'rgba(255,255,255,0.15)');
         }
-        txt('bintang terkumpul: ' + total + ' / 9', VW / 2, 238, { font: FONT_VT(17), color: '#c8c2e8', align: 'center', alpha: clamp((et - 1.25) / 0.4, 0, 1) });
+        txt('bintang terkumpul: ' + total + ' / ' + nBintang, VW / 2, 238,
+          { font: FONT_VT(17), color: '#c8c2e8', align: 'center', alpha: clamp((et - 1.25) / 0.4, 0, 1) });
         wrap('Kau telah membuktikan satu hal penting: pesan aman bukan karena jalannya tersembunyi, tetapi karena isinya terkunci — dan hanya penerima yang tepat yang memegang kuncinya.', FONT_VT(19), 460).forEach((ln, i) => {
           const p = clamp((et - 1.45 - i * 0.14) / 0.4, 0, 1);
           txt(ln, VW / 2, 262 + i * 22, { font: FONT_VT(19), color: '#f0ecff', align: 'center', alpha: p });
