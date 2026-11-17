@@ -117,6 +117,25 @@ const Crypto = {
     return baris;
   },
 
+  /* ---- Lembar kiriman Mode Proyek Kelompok (handout hal. 10 langkah 4) ----
+     Satu baris supaya mudah disalin & ditempel antar kelompok.
+     Format: SANDI|a|c  dengan f(x) = h(g(x)), g(x)=x+c, h(y)=a*y  =>  b = a*c */
+  buatLembar(sandi, a, c) { return sandi + '|' + a + '|' + c; },
+  bacaLembar(teks) {
+    const bagian = String(teks || '').trim().split('|').map(t => t.trim());
+    if (bagian.length < 3) return null;
+    const sandi = bagian[0].replace(/[^a-zA-Z ]/g, '');   // spasi ikut: spasi = 0
+    const a = parseInt(bagian[1], 10), c = parseInt(bagian[2], 10);
+    if (!sandi || !isFinite(a) || !isFinite(c) || a === 0) return null;
+    return { sandi: sandi, a: a, c: c, b: a * c };
+  },
+  /* satu langkah proyek untuk ditampilkan sebagai indikator 1..7 */
+  langkahProyek(tahap, sandiSiap, terimaSiap, hasilSiap) {
+    if (tahap === 0) return sandiSiap ? [4, 'Kirim lembar ke kelompok pasangan'] : [2, 'Susun pesan + kunci ganda'];
+    if (!terimaSiap) return [5, 'Terima lembar dari kelompok pasangan'];
+    return hasilSiap ? [6, 'Deskripsi selesai \u2014 siap dipresentasikan'] : [6, 'Cari fungsi deskripsi lalu buka pesannya'];
+  },
+
   /* Contoh yang sama dengan handout (hal. 8-9): "Temui Aku Di Taman" dengan
      kunci f(x) = 3x + 2. Hitungnya memakai mesin game sendiri, jadi angkanya
      pasti konsisten dengan level yang dimainkan. */

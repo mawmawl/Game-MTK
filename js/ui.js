@@ -65,6 +65,16 @@ window.addEventListener('paste', (e) => {
       L.courierUI.value = t.replace(/[^a-zA-Z ]/g, '').slice(0, 120);
       L.courierUI.msg = { text: 'Ditempel dari papan klip.', c: '#7ae68a' };
       SFX.paper(); e.preventDefault();
+    } else if (typeof Scenes !== 'undefined' && Scenes.cur === 'proyek' && Scenes.data && Scenes.data.P) {
+      const P = Scenes.data.P;
+      const sisi = P.tab === 0 ? P.kirim : P.terima;
+      const kunci = P.tab === 0 ? 'pesan' : 'sandi';
+      const bersih = t.replace(/[^a-zA-Z ]/g, '').slice(0, 60);
+      if (bersih) {
+        sisi[kunci] = bersih;
+        P.msg = { text: 'Ditempel dari papan klip.', c: '#7ae68a' };
+        SFX.paper(); e.preventDefault();
+      }
     } else if (typeof L !== 'undefined' && L && L.machine && L.machine.open) {
       const angka = t.replace(/[^0-9\-]/g, '').slice(0, 4);
       if (angka) { L.machine[L.machine.focus === 'a' ? 'fa' : 'fb'] = angka; SFX.type(); e.preventDefault(); }
@@ -310,6 +320,103 @@ function iconLock(x, y, c) {
   ctx.beginPath(); ctx.arc(x + 9, y + 6, 4, Math.PI, 0); ctx.stroke();
   R(x + 8, y + 9, 2, 4, '#1a1428');
 }
+/* ---------- Mode Proyek Kelompok (handout hal. 10) ---------- */
+/* Tata letak memakai jarak tetap: setiap baris punya y sendiri supaya label
+   tidak menempel/menimpa garis kotak baris di atasnya. */
+const PY = {
+  langkah: 30, tab: 50, tabH: 24, label1: 88, kolom1: 106, kolomH: 26,
+  label2: 146, kunci: 164, kunciH: 24, rumus: 204, tombol: 226, tombolH: 24,
+  label4: 266, hasil: 288, msg: 330
+};
+function drawProyek(P) {
+  const w = TOUCH ? Math.min(VW - 16, 700) : 596;
+  const h = TOUCH ? VH - 16 : 352;
+  const x = (VW - w) / 2, y = (VH - h) / 2;
+  const tb = TOUCH ? vbutton : button;
+  const tsz = TOUCH ? 8 : 7;
+  panel(x, y, w, h, { title: 'MODE PROYEK KELOMPOK', accent: '#e8c04a', bg: '#161230' });
+  const K = P.kirim, T = P.terima, sisi = P.tab === 0 ? K : T;
+  const kn = P.tab === 0 ? 'pesan' : 'sandi';
+  const fokusTeks = P.fokus === 'teks';
+  const a = parseInt(K.a, 10), c = parseInt(K.c, 10);
+  const ta = parseInt(T.a, 10), tc = parseInt(T.c, 10);
+  const lebar = w - 48;
+
+  const lk = proyekLangkah(P);
+  txt('LANGKAH ' + lk[0] + '/7 \u2014 ' + lk[1], x + 18, y + PY.langkah, { font: FONT_PS(6), color: '#ffe9a8' });
+  txt(P.tab === 0 ? 'peran: KELOMPOK PENGIRIM (enkripsi)' : 'peran: KELOMPOK PENERIMA (deskripsi)',
+    x + w - 18, y + PY.langkah, { font: FONT_VT(13), color: '#8ab0d8', align: 'right' });
+
+  tb(x + 18, y + PY.tab, 150, PY.tabH, '1. KIRIM',
+    () => { P.tab = 0; P.fokus = 'teks'; P.msg = null; SFX.uiMove(); },
+    { size: tsz, focused: P.tab === 0, accent: '#7ae68a' });
+  tb(x + 176, y + PY.tab, 150, PY.tabH, '2. TERIMA',
+    () => { P.tab = 1; P.fokus = 'teks'; P.msg = null; SFX.uiMove(); },
+    { size: tsz, focused: P.tab === 1, accent: '#7ac8ff' });
+
+  txt(P.tab === 0 ? '1. PESAN RAHASIA (huruf & spasi saja)' : '5. SANDI YANG DITERIMA (huruf & spasi)',
+    x + 24, y + PY.label1, { font: FONT_PS(6), color: '#7ac8ff' });
+  drawTextInput(x + 24, y + PY.kolom1, lebar, PY.kolomH, sisi[kn], fokusTeks, { color: '#f0ecff' });
+
+  txt(P.tab === 0 ? '2. KUNCI GANDA: g(x) = x + c  lalu  h(x) = a \u00b7 x'
+                  : '4. KUNCI DARI LEMBAR: a dan c',
+    x + 24, y + PY.label2, { font: FONT_PS(6), color: '#7ac8ff' });
+  txt('a =', x + 62, y + PY.kunci + 12, { font: FONT_PS(8), color: '#ffe9a8', align: 'right', baseline: 'middle' });
+  drawTextInput(x + 72, y + PY.kunci, 96, PY.kunciH, sisi.a, P.fokus === 'a', { color: '#7ae68a' });
+  txt('c =', x + 224, y + PY.kunci + 12, { font: FONT_PS(8), color: '#ffe9a8', align: 'right', baseline: 'middle' });
+  drawTextInput(x + 234, y + PY.kunci, 96, PY.kunciH, sisi.c, P.fokus === 'c', { color: '#7ae68a' });
+
+  if (P.tab === 0 && isFinite(a) && isFinite(c) && a !== 0) {
+    txt(Crypto.fmtFn(a, a * c) + '   =   ' + Crypto.fmtVerbal(a, a * c, c, true), x + 24, y + PY.rumus,
+      { font: FONT_VT(14), color: '#c8c2f0' });
+  } else if (P.tab === 1 && isFinite(ta) && isFinite(tc) && ta !== 0) {
+    txt('deskripsi: f\u207b\u00b9(x) = (x \u2212 ' + (ta * tc) + ') \u00f7 ' + ta, x + 24, y + PY.rumus,
+      { font: FONT_VT(14), color: '#c8c2f0' });
+  } else {
+    txt(P.tab === 0 ? 'kunci ganda = komposisi fungsi (keamanan berlipat)'
+                    : 'salin a dan c persis seperti di lembar kiriman', x + 24, y + PY.rumus,
+      { font: FONT_VT(13), color: '#6a6494' });
+  }
+
+  if (P.tab === 0) {
+    tb(x + 24, y + PY.tombol, 230, PY.tombolH, '3. ENKRIPSI & BUAT LEMBAR', () => kirimProyek(P), { size: tsz });
+    tb(x + 262, y + PY.tombol, 150, PY.tombolH, 'SALIN LEMBAR',
+      () => salinLembarProyek(P), { size: tsz, accent: '#7ac8ff' });
+  } else {
+    tb(x + 24, y + PY.tombol, 150, PY.tombolH, 'TEMPEL LEMBAR',
+      () => tempelLembarProyek(P), { size: tsz, accent: '#7ac8ff' });
+    tb(x + 182, y + PY.tombol, 170, PY.tombolH, '6. DESKRIPSI', () => bukaProyek(P), { size: tsz });
+  }
+
+  if (P.tab === 0) {
+    txt('4. LEMBAR KIRIMAN (serahkan ke kelompok pasangan)', x + 24, y + PY.label4,
+      { font: FONT_PS(6), color: '#ffe9a8' });
+    barisAcuan(K.lembar || '(belum dibuat)', x + 24, y + PY.hasil, lebar, K.lembar ? '#7ae68a' : '#6a6494', 14);
+  } else {
+    txt('6. PESAN TERBACA', x + 24, y + PY.label4, { font: FONT_PS(6), color: '#ffe9a8' });
+    barisAcuan(T.hasil ? '\u201c' + T.hasil + '\u201d \u2014 siap dipresentasikan (langkah 7)' : '(belum dideskripsi)',
+      x + 24, y + PY.hasil, lebar, T.hasil ? '#7ae68a' : '#6a6494', 14);
+  }
+  if (P.msg) txt(P.msg.text, x + 24, y + PY.msg, { font: FONT_VT(13), color: P.msg.c, maxWidth: lebar });
+  txt(TOUCH ? 'ketuk kolom untuk mengetik' : 'TAB peran \u2022 Esc keluar',
+    x + w - 18, y + PY.tab + 8, { font: FONT_VT(12), color: '#8a84b8', align: 'right' });
+
+  if (TOUCH) {
+    const pk = fokusTeks ? ['abcdefghi', 'jklmnopqr', 'stuvwxyz'] : ['123456789', '0-'];
+    const lebarT = (lebar - 8) / 9 + 6;
+    let py = y + h - 96;
+    pk.forEach((baris, r) => {
+      for (let i = 0; i < baris.length; i++) {
+        vbutton(x + 24 + i * (lebarT + 2), py + r * 30, lebarT, 27, baris[i], () => Input.vkey(baris[i]), { size: 8 });
+      }
+    });
+    py += pk.length * 30 + 2;
+    vbutton(x + 24, py, (lebar - 6) / 2, 27, 'SPASI', () => Input.vkey(' '), { size: 7, accent: '#7ac8ff' });
+    vbutton(x + 30 + (lebar - 6) / 2, py, (lebar - 6) / 2, 27, '\u232b HAPUS',
+      () => Input.vkey('Backspace'), { size: 7, accent: '#c0563f' });
+  }
+}
+
 /* ---------- Kartu ACUAN: tabel kuantifikasi + kamus + contoh handout ---------- */
 function barisAcuan(str, x, sy, lebar, warna, ukuran) {
   const fs = ukuran || 12;

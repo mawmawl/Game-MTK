@@ -1205,6 +1205,100 @@ function drawStarRow(x, y, n, total, r = 7) {
   }
 }
 
+/* ================= MODE PROYEK KELOMPOK =================
+   Mengikuti prosedur handout proyek enkripsi hal. 10:
+   1 pesan rahasia  2 kunci ganda (komposisi)  3 enkripsi  4 kirim lembar
+   5 terima lembar  6 deskripsi  7 presentasi.
+   Kelompok pengirim memakai tab KIRIM, kelompok penerima tab TERIMA. */
+const MENU_OPTS = ['MULAI', 'PILIH LEVEL', 'CARA MAIN', 'MODE PROYEK'];
+
+function proyekBaru() {
+  return {
+    tab: 0, fokus: 'teks', t: 0, msg: null,
+    kirim: { pesan: '', a: '', c: '', sandi: '', lembar: '' },
+    terima: { sandi: '', a: '', c: '', hasil: '' }
+  };
+}
+function proyekSisi(P) { return P.tab === 0 ? P.kirim : P.terima; }
+function proyekKunciTeks(P) { return P.tab === 0 ? 'pesan' : 'sandi'; }
+function proyekLangkah(P) {
+  return Crypto.langkahProyek(P.tab, !!P.kirim.sandi, !!(P.terima.sandi && P.terima.a && P.terima.c),
+    !!P.terima.hasil);
+}
+function proyekAngka(v) { return parseInt(v, 10); }
+
+function updateProyek(P, dt) {
+  P.t = (P.t || 0) + dt;
+  const T = proyekSisi(P);
+  const kunciTeks = proyekKunciTeks(P);
+  if (Input.press('Tab')) { P.tab = 1 - P.tab; P.fokus = 'teks'; P.msg = null; SFX.uiMove(); }
+  if (Input.press('Escape')) { SFX.uiBack(); Scenes.go('title'); return; }
+  const urut = ['teks', 'a', 'c', 'aksi'];
+  const geser = (arah) => {
+    let i = urut.indexOf(P.fokus);
+    if (i < 0) i = 0;
+    P.fokus = urut[(i + arah + urut.length) % urut.length];
+    SFX.uiMove();
+  };
+  if (Input.press('ArrowDown')) geser(1);
+  if (Input.press('ArrowUp')) geser(-1);
+  if (Input.press('ArrowLeft')) geser(-1);
+  if (Input.press('ArrowRight')) geser(1);
+  for (const ch of Input.charQueue) {
+    if (/[a-zA-Z ]/.test(ch)) {                       // huruf selalu ke kolom teks
+      if (T[kunciTeks].length < 60) { T[kunciTeks] += ch; SFX.type(); }
+    } else if (/[0-9\-]/.test(ch) && (P.fokus === 'a' || P.fokus === 'c')) {
+      T[P.fokus] = (T[P.fokus] + ch).slice(0, 4); SFX.type();
+    }
+  }
+  if (Input.press('Backspace')) {
+    if (P.fokus === 'a' || P.fokus === 'c') T[P.fokus] = T[P.fokus].slice(0, -1);
+    else T[kunciTeks] = T[kunciTeks].slice(0, -1);
+    SFX.uiBack();
+  }
+  if (Input.press('Enter')) {
+    if (P.fokus === 'teks') P.fokus = 'a';
+    else if (P.fokus === 'a') P.fokus = 'c';
+    else if (P.fokus === 'c') P.fokus = 'aksi';
+    else { P.tab === 0 ? kirimProyek(P) : bukaProyek(P); }
+  }
+}
+
+function kirimProyek(P) {
+  const K = P.kirim;
+  const a = proyekAngka(K.a), c = proyekAngka(K.c);
+  if (!K.pesan.trim()) { P.msg = { text: 'Tulis dulu pesan rahasianya.', c: '#ffb0a0' }; SFX.deny(); return; }
+  if (!isFinite(a) || a === 0) { P.msg = { text: 'Pengali (a) harus angka dan bukan 0.', c: '#ffb0a0' }; SFX.deny(); return; }
+  if (!isFinite(c)) { P.msg = { text: 'Penggeser (c) harus angka.', c: '#ffb0a0' }; SFX.deny(); return; }
+  K.sandi = Crypto.encrypt(K.pesan, a, a * c);
+  K.lembar = Crypto.buatLembar(K.sandi, a, c);
+  P.msg = { text: 'Lembar kiriman siap. Salin lalu serahkan ke kelompok pasangan.', c: '#7ae68a' };
+  SFX.sparkle();
+}
+function bukaProyek(P) {
+  const T = P.terima;
+  const a = proyekAngka(T.a), c = proyekAngka(T.c);
+  const sandi = T.sandi.replace(/[^a-zA-Z ]/g, '');
+  if (!sandi.trim()) { P.msg = { text: 'Belum ada sandi yang diterima.', c: '#ffb0a0' }; SFX.deny(); return; }
+  if (!isFinite(a) || a === 0 || !isFinite(c)) { P.msg = { text: 'Isi kunci dari lembar: a dan c.', c: '#ffb0a0' }; SFX.deny(); return; }
+  T.hasil = Crypto.decrypt(sandi, a, a * c);
+  P.msg = { text: 'Pesan terbaca. Presentasikan hasilnya (langkah 7).', c: '#7ae68a' };
+  SFX.sparkle();
+}
+function salinLembarProyek(P) {
+  if (!P.kirim.lembar) { P.msg = { text: 'Belum ada lembar. Tekan ENKRIPSI & BUAT LEMBAR dulu.', c: '#ffb0a0' }; SFX.deny(); return; }
+  copyText(P.kirim.lembar);
+  P.msg = { text: 'Lembar tersalin. Tempel di tab TERIMA kelompok pasangan.', c: '#7ae68a' };
+}
+function tempelLembarProyek(P) {
+  const b = Crypto.bacaLembar(window.__copiedText || '');
+  if (!b) { P.msg = { text: 'Belum ada lembar tersalin. Minta kelompok pasangan menyalinnya.', c: '#ffb0a0' }; SFX.deny(); return; }
+  P.terima.sandi = b.sandi; P.terima.a = String(b.a); P.terima.c = String(b.c); P.terima.hasil = '';
+  P.tab = 1; P.fokus = 'aksi';
+  P.msg = { text: 'Lembar ditempel. Tekan DESKRIPSI untuk membuka pesannya.', c: '#7ae68a' };
+  SFX.paper();
+}
+
 const Scenes = {
   cur: 'boot', data: {},
   go(n, d = {}) { this.cur = n; this.data = d; },
@@ -1258,13 +1352,14 @@ const Scenes = {
           return;
         }
         d.idx = d.idx ?? 0;
-        if (d.idx > 2 || d.idx < 0) d.idx = 0;
-        if (Input.press('ArrowUp', 'w', 'W')) { d.idx = (d.idx + LEVELS.length - 1) % LEVELS.length; SFX.uiMove(); }
-        if (Input.press('ArrowDown', 's', 'S')) { d.idx = (d.idx + 1) % LEVELS.length; SFX.uiMove(); }
+        if (d.idx > MENU_OPTS.length - 1 || d.idx < 0) d.idx = 0;
+        if (Input.press('ArrowUp', 'w', 'W')) { d.idx = (d.idx + MENU_OPTS.length - 1) % MENU_OPTS.length; SFX.uiMove(); }
+        if (Input.press('ArrowDown', 's', 'S')) { d.idx = (d.idx + 1) % MENU_OPTS.length; SFX.uiMove(); }
         if (Input.press('Enter', 'e', 'E', ' ')) {
           SFX.uiSelect();
           if (d.idx === 0) startLevel(Math.min(G.save.unlocked, LEVELS.length) - 1);
           else if (d.idx === 1) Scenes.go('select', { idx: Math.min(G.save.unlocked, LEVELS.length) - 1 });
+          else if (d.idx === 3) Scenes.go('proyek', {});
           else Scenes.go('how', { page: 0 });
         }
       },
@@ -1277,11 +1372,12 @@ const Scenes = {
         const naik = easeOutCubic(clamp((mt - 0.12) / 0.8, 0, 1));
         Cinematic.menuFrame(Cinematic.T.logo + 2.6 + t, 168 + (90 - 168) * naik);
         UI.begin();
-        const opts = ['MULAI', 'PILIH LEVEL', 'CARA MAIN'];
+        const opts = MENU_OPTS;
         opts.forEach((o, i) => {
           luxButton(VW / 2 - 92, 196 + i * 42, 184, 32, o, () => {
             if (i === 0) startLevel(Math.min(G.save.unlocked, LEVELS.length) - 1);
             else if (i === 1) Scenes.go('select', { idx: Math.min(G.save.unlocked, LEVELS.length) - 1 });
+            else if (i === 3) Scenes.go('proyek', {});
             else Scenes.go('how', { page: 0 });
           }, {
             focused: d.idx === i,
@@ -1296,6 +1392,17 @@ const Scenes = {
               VW / 2, VH - 12, { font: FONT_VT(15), color: 'rgba(180,172,214,0.55)', align: 'center', alpha: apHint });
         }
       }
+    },
+
+    /* ---------- MODE PROYEK KELOMPOK ---------- */
+    proyek: {
+      update(dt) {
+        checkMute();
+        const d = Scenes.data;
+        if (!d.P) d.P = proyekBaru();
+        updateProyek(d.P, dt);
+      },
+      render() { drawProyek(Scenes.data.P || proyekBaru()); }
     },
 
     /* ---------- PILIH LEVEL ---------- */
