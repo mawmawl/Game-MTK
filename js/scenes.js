@@ -58,6 +58,10 @@ function buildLevel(idx) {
     sightRects: wallRects.concat(objSights),
     objects: objs,
     message: puzzle.message, a: puzzle.a, b: puzzle.b, encrypted: null,
+    // revisi: tiap level beda fungsi + tugas deskripsi + nyawa
+    c: puzzle.c, komposisi: puzzle.komposisi,
+    masukAsli: puzzle.masukAsli, masukSandi: puzzle.masukSandi, masukAda: false,
+    hasilDeskripsi: null, lives: 3, livesMax: 3, gagal: false,
     found: { message: false, note: false, enc: false }, delivered: false,
     player,
     courier: { x: (def.courier.x + .5) * TILE, y: (def.courier.y + 1) * TILE, alpha: 1 },
@@ -171,31 +175,47 @@ function interact(o) {
 /* ============================================================
    MESIN ENKRIPSI
    ============================================================ */
+/* label parameter: level 3 memakai g(x)=x+c dan h(y)=a y (KOMPOSISI) */
+function paramLabels() { return L.komposisi ? ['a', 'c'] : ['a', 'b']; }
+function machineMode() { return L.masukAda ? 'dec' : 'enc'; }
+
 function submitMachine(M) {
+  const L3 = L.komposisi;
   if (M.fa === '' || M.fb === '' || M.fb === '-') {
-    M.msg = { text: 'Isi dulu nilai a dan b.', c: '#ffb0a0' };
+    M.msg = { text: L3 ? 'Isi dulu nilai a dan c.' : 'Isi dulu nilai a dan b.', c: '#ffb0a0' };
     SFX.deny(); return;
   }
   const a = parseInt(M.fa, 10), b = parseInt(M.fb, 10);
-  if (a === L.a && b === L.b) {
+  const cocok = L3 ? (a === L.a && b === L.c) : (a === L.a && b === L.b);
+  if (cocok) {
     M.phase = 'work'; M.workT = 1.6; M.msg = null;
     SFX.machineRun();
   } else {
-    M.msg = { text: 'PARAMETER TIDAK COCOK! Periksa catatan fungsimu.', c: '#ff8a7a' };
+    M.msg = { text: L3 ? 'PARAMETER TIDAK COCOK! Periksa g(x) dan h(x) di catatanmu.'
+                       : 'PARAMETER TIDAK COCOK! Periksa catatan fungsimu.', c: '#ff8a7a' };
     SFX.deny(); Camera.shake(2, .25);
   }
 }
 function finishMachine(M) {
-  L.encrypted = Crypto.encrypt(L.message, L.a, L.b);
   L.found.enc = true;
+  let judul;
+  if (machineMode() === 'dec') {
+    // DESKRIPSI: fungsi invers dari sandi yang dikirim markas
+    L.hasilDeskripsi = Crypto.decrypt(L.masukSandi, L.a, L.b);
+    M.resultText = L.hasilDeskripsi;
+    judul = '+ TEKS TERBUKA';
+  } else {
+    L.encrypted = Crypto.encrypt(L.message, L.a, L.b);
+    M.resultText = L.encrypted;
+    judul = '+ TEKS TERENKRIPSI';
+  }
   M.phase = 'result';
-  M.resultText = L.encrypted;
   M.revT = 0;                                   // sandi "dicetak" huruf demi huruf
   SFX.chime();
   const cx = (L.def.objects.find(o => o.type === 'machine').x + 1) * TILE;
   const cy = L.def.objects.find(o => o.type === 'machine').y * TILE;
   Particles.burst(cx, cy + 16, { n: 22, c: ['#7ae68a', '#d0ffe0', '#4ae6d8'], sp: 80, life: .9 });
-  Particles.text(cx, cy, '+ TEKS TERENKRIPSI', '#7ae68a');
+  Particles.text(cx, cy, judul, machineMode() === 'dec' ? '#7ac8ff' : '#7ae68a');
 }
 function updateMachine(dt) {
   const M = L.machine;
@@ -233,7 +253,28 @@ function updateMachine(dt) {
    KETIK KE KURIR
    ============================================================ */
 function submitCourier(C) {
-  if (!C.value) { C.msg = { text: 'Tulis dulu teks terenkripsinya.', c: '#ffb0a0' }; return; }
+  if (!C.value) {
+    C.msg = { text: L.masukAda ? 'Tulis dulu hasil deskripsinya.' : 'Tulis dulu teks terenkripsinya.', c: '#ffb0a0' };
+    return;
+  }
+  // tahap 2: menyerahkan hasil DESKRIPSI (teks asli dari balasan markas)
+  if (L.masukAda && !L.resultsGiven) {
+    if (C.value === L.masukAsli) {
+      C.open = false;
+      L.delivered = true;
+      L.courierLeaving = { t: 0 };
+      L.flash = { t: 0.7, c: '255,232,170' };
+      L.pulse = { t: 0.9, t0: 0.9, c: '255,214,120' };
+      L.hitstop = 0.14;
+      SFX.door(); SFX.fanfare();
+      Particles.text(L.courier.x, L.courier.y - 34, 'BALASAN TERKIRIM!', '#7ae68a');
+      Particles.burst(L.courier.x, L.courier.y - 16, { n: 26, c: ['#ffe28a', '#7ae68a', '#fff6d8'], sp: 90, life: 1 });
+    } else {
+      C.msg = { text: 'Hasil deskripsi tidak cocok! Pakai mode DESKRIPSI di mesin [TAB].', c: '#ff8a7a' };
+      C.shakeT = .5; SFX.deny(); Camera.shake(2, .2);
+    }
+    return;
+  }
   if (C.value === L.encrypted) {
     C.open = false;
     L.delivered = true;
@@ -351,7 +392,16 @@ function updateGame(dt) {
       const tx = (door.x + door.w / 2) * TILE;
       L.courier.x = lerp(L.courier.x, tx, dt * 2.2);
       L.courier.alpha = clamp(1 - (L.courierLeaving.t - .5) / .8, 0, 1);
-      if (L.courierLeaving.t > 1.5 && !L.resultsGiven) {
+      if (L.courierLeaving.t > 1.5 && !L.masukAda) {
+        // kiriman pertama aman -> kurir kembali membawa surat balasan markas
+        L.masukAda = true;
+        L.courierLeaving = null;
+        L.courier.alpha = 1;
+        L.pulse = { t: 0.8, t0: 0.8, c: '120,200,255' };
+        openDialog('Kurir Surat', 'Markas mengirim balasan! Sandinya ada di jurnal [TAB]. Buka dengan fungsi INVERS, lalu ketik teks aslinya ke saya.', null, '#e8a44a');
+        Particles.text(L.player.x + 8, L.player.y - 20, 'SURAT MASUK', '#7ac8ff');
+        SFX.paper();
+      } else if (L.courierLeaving.t > 1.5 && !L.resultsGiven) {
         L.resultsGiven = true;
         computeResults();
       }

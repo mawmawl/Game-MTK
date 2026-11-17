@@ -10,7 +10,7 @@ const LEVELS = [
 
   /* ============ LEVEL 1 — KAMAR ============ */
   {
-    name: 'Kamar', subtitle: 'Malam Pertama', themeMusic: 'bedroom', target: 90,
+    name: 'Kamar', subtitle: 'Malam Pertama', themeMusic: 'bedroom', target: 150,
     w: 24, h: 14,
     map: [
       '########################',
@@ -80,7 +80,7 @@ const LEVELS = [
 
   /* ============ LEVEL 2 — SEKOLAH ============ */
   {
-    name: 'Sekolah', subtitle: 'Koridor yang Diawasi', themeMusic: 'school', target: 150,
+    name: 'Sekolah', subtitle: 'Koridor yang Diawasi', themeMusic: 'school', target: 240,
     w: 30, h: 16,
     map: [
       '##############################',
@@ -162,7 +162,7 @@ const LEVELS = [
 
   /* ============ LEVEL 3 — LAB RUSAK ============ */
   {
-    name: 'Lab Rusak', subtitle: 'Misi Terakhir', themeMusic: 'lab', target: 210,
+    name: 'Lab Rusak', subtitle: 'Misi Terakhir', themeMusic: 'lab', target: 330,
     w: 30, h: 16,
     map: [
       '##############################',

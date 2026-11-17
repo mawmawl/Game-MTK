@@ -132,9 +132,11 @@ function drawHUD(L) {
     ['Temukan pesan', L.found.message],
     ['Temukan fungsi', L.found.note],
     ['Enkripsi pesan', L.found.enc],
-    ['Serahkan ke kurir', L.delivered]
+    ['Antar ke kurir', !!L.masukAda],
+    ['Buka balasan', !!L.hasilDeskripsi],
+    ['Antar balasan', !!L.resultsGiven]
   ];
-  const rowH = 17, W = 170, H = 30 + objs.length * rowH;
+  const rowH = 15, W = 178, H = 28 + objs.length * rowH;
   R(8, 8, W, H, 'rgba(10,8,24,0.74)');
   O(8, 8, W, H, 'rgba(140,120,230,0.4)');
   O(9, 9, W - 2, H - 2, 'rgba(20,16,44,0.9)');
@@ -155,6 +157,16 @@ function drawHUD(L) {
   R(VW - 150, 8, 142, 2, 'rgba(232,192,74,0.6)');
   CIR(VW - 134, 21, 6, '#e8c04a'); CIR(VW - 134, 21, 5, '#181430');
   R(VW - 135, 16, 1, 5, '#e8c04a'); R(VW - 134, 20, 3, 1, '#e8c04a');
+  // nyawa (maks 3): habis -> ulang dari level sebelumnya
+  const nx = VW - 150, ny = 54, nmax = L.livesMax || 3, nkini = (L.lives === undefined ? nmax : L.lives);
+  R(nx, ny, 142, 20, 'rgba(10,8,24,0.74)');
+  O(nx, ny, 142, 20, 'rgba(140,120,230,0.4)');
+  txt('NYAWA', nx + 9, ny + 11, { font: FONT_PS(7), color: '#e8c04a', baseline: 'middle' });
+  for (let i = 0; i < nmax; i++) {
+    const hidup = i < nkini, hxc = nx + 74 + i * 22;
+    CIR(hxc, ny + 10, 6, hidup ? '#ff6a5a' : 'rgba(255,255,255,0.13)');
+    CIR(hxc, ny + 10, 3, hidup ? '#ffd0c0' : 'rgba(255,255,255,0.05)');
+  }
   txt(fmtTime(L.timer), VW - 122, 25, { font: FONT_PS(8), color: '#fff' });
   txt('MATA-MATA', VW - 142, 41, { font: FONT_VT(13), color: '#8a84b8' });
   // hanya 3 titik tersedia; lebih dari itu ditampilkan sebagai "+N"
@@ -266,17 +278,24 @@ function drawJournal(L) {
   // ukuran huruf sandi menyesuaikan LEBAR terukurnya (sandi tidak punya spasi,
   // jadi wrap biasa tidak bisa memotongnya), lalu tingginya ikut jumlah baris
   const avail = w - 36;                                   // kotak dalam dikurangi padding kiri
-  const efsz = L.encrypted ? fitFont(L.encrypted, [22, 20, 18, 17, 16, 15, 14], avail, FONT_VT) : 22;
-  const encLines = L.encrypted ? wrapHard(L.encrypted, FONT_VT(efsz), avail) : [];
+  const sandiAktif = L.masukAda ? (L.masukSandi || '') : (L.encrypted || '');
+  const efsz = sandiAktif ? fitFont(sandiAktif, [22, 20, 18, 17, 16, 15, 14], avail, FONT_VT) : 22;
+  const encLines = sandiAktif ? wrapHard(sandiAktif, FONT_VT(efsz), avail) : [];
 
   const sections = [
     { title: 'PESAN RAHASIA', hh: 70, fsz: 19, col: '#f0ecff', body: '', ok: false },
-    { title: 'CATATAN FUNGSI', hh: 70, fsz: 19, col: '#f0ecff',
-      body: L.found.note ? Crypto.fmtFn(L.a, L.b) : 'Belum ditemukan...', ok: L.found.note,
-      hint: 'Cari kertas catatan tersembunyi' },
-    { title: 'TEKS TERENKRIPSI', hh: L.encrypted ? Math.max(70, 36 + encLines.length * (efsz + 4)) : 70,
-      fsz: efsz, col: '#7ae68a', body: L.encrypted || '???', ok: !!L.encrypted,
-      hint: 'Gunakan mesin enkripsi' }
+    { title: 'CATATAN FUNGSI', hh: L.komposisi ? 96 : 70, fsz: L.komposisi ? 15 : 19, col: '#f0ecff',
+      body: L.found.note ? Crypto.fmtFn(L.a, L.b) : 'Belum ditemukan...',
+      rows: (L.found.note && L.komposisi) ? Crypto.fmtKomposisi(L.a, L.c) : null,
+      ok: L.found.note, hint: 'Cari kertas catatan tersembunyi' },
+    L.masukAda
+      ? { title: 'SURAT MASUK \u2014 BUKA DENGAN FUNGSI INVERS',
+          hh: sandiAktif ? Math.max(70, 36 + encLines.length * (efsz + 4)) : 70,
+          fsz: efsz, col: '#7ac8ff', body: sandiAktif || '???', ok: !!sandiAktif,
+          hint: 'Kurir belum kembali dengan balasan' }
+      : { title: 'TEKS TERENKRIPSI', hh: sandiAktif ? Math.max(70, 36 + encLines.length * (efsz + 4)) : 70,
+          fsz: efsz, col: '#7ae68a', body: sandiAktif || '???', ok: !!sandiAktif,
+          hint: 'Gunakan mesin enkripsi' }
   ];
   sections[0].body = L.found.message ? '\u201c' + L.message + '\u201d' : 'Belum ditemukan...';
   sections[0].ok = L.found.message;
@@ -292,13 +311,13 @@ function drawJournal(L) {
     else iconLock(jx + 18, sy + 4, '#7ac8ff');
     txt(s.title, jx + 44, sy + 16, { font: FONT_PS(7), color: s.ok ? '#ffe9a8' : '#8a84b8' });
     const col = s.ok ? s.col : '#6a6494';
-    const lines = wrap(s.body, FONT_VT(s.fsz), w - (s.ok && i === 2 ? 116 : 60));
+    const lines = s.rows || wrap(s.body, FONT_VT(s.fsz), w - (s.ok && i === 2 ? 116 : 60));
     lines.forEach((ln, li) =>
       txt(ln, jx + 24, sy + 40 + li * (s.fsz + 4), { font: FONT_VT(s.fsz), color: col }));
     if (!s.ok) txt(s.hint, jx + 24, sy + hh - 14, { font: FONT_VT(14), color: '#5a5488' });
     if (i === 2 && s.ok) {
       const bw = TOUCH ? 84 : 66, bh = TOUCH ? 30 : 22;
-      button(jx + w - bw - 18, sy + 8, bw, bh, copiedRecently() ? '\u2713' : 'SALIN', () => copyText(L.encrypted), { size: 6 });
+      button(jx + w - bw - 18, sy + 8, bw, bh, copiedRecently() ? '\u2713' : 'SALIN', () => copyText(sandiAktif), { size: 6 });
     }
     sy += hh + 8;
   });
@@ -315,9 +334,14 @@ function drawMachineUI(M) {
   let cy = y + 40;
 
   if (M.phase === 'input') {
-    txt('Masukkan parameter sesuai catatan fungsi:', x + w / 2, cy + 6, { font: FONT_VT(16), color: '#a8c8d8', align: 'center' });
-    cy += 20;
-    const fields = [['a', M.fa], ['b', M.fb]];
+    const mode = machineMode();
+    txt(mode === 'dec' ? 'MODE: DESKRIPSI (fungsi invers)' : 'MODE: ENKRIPSI',
+      x + w / 2, cy - 4, { font: FONT_PS(7), color: mode === 'dec' ? '#7ac8ff' : '#7ae68a', align: 'center' });
+    txt(L.komposisi ? 'Masukkan a (dari h) dan c (dari g):' : 'Masukkan parameter sesuai catatan fungsi:',
+      x + w / 2, cy + 12, { font: FONT_VT(16), color: '#a8c8d8', align: 'center' });
+    cy += 26;
+    const kunci = paramLabels();
+    const fields = [[kunci[0], M.fa], [kunci[1], M.fb]];
     fields.forEach((f, fi) => {
       const fy = cy + fi * 40;
       const focused = M.focus === f[0];
@@ -410,7 +434,9 @@ function drawMachineUI(M) {
     button(x + w / 2 - 70, yBtn, 140, 26, copiedRecently() ? '\u2713 TERSALIN' : 'SALIN TEKS',
       () => copyText(M.resultText), { size: 7 });
     // petunjuk 16 px di bawah tombol
-    txt('Antar teks ini ke kurir di dekat pintu!', x + w / 2, yBtn + 26 + 16 + Math.ceil(16 * 0.56),
+    txt(machineMode() === 'dec' ? 'Ketik hasil ini ke kurir di dekat pintu!'
+                                : 'Antar teks ini ke kurir di dekat pintu!',
+      x + w / 2, yBtn + 26 + 16 + Math.ceil(16 * 0.56),
       { font: FONT_VT(16), color: '#a8c8d8', align: 'center' });
     txt('Esc \u2014 tutup', x + w / 2, y + h - 10, { font: FONT_VT(13), color: '#5a5488', align: 'center' });
   }
@@ -422,15 +448,17 @@ function drawCourierUI(C) {
   const w = 520, h = 198, x = VW / 2 - w / 2, y = VH - h - 14;
   const shakeX = C.shakeT > 0 ? Math.sin(C.shakeT * 60) * 3 * C.shakeT : 0;
   panel(x + shakeX, y, w, h, { title: '📮 KURIR SURAT', accent: '#e8a44a', bg: '#20182c', close: () => { C.open = false; SFX.uiBack(); } });
-  txt('Serahkan teks terenkripsinya (persis seperti di jurnal):', x + w / 2, y + 40, { font: FONT_VT(16), color: '#d8c8b8', align: 'center' });
+  txt(L.masukAda ? 'Serahkan hasil deskripsi balasan (persis seperti di mesin):'
+                 : 'Serahkan teks terenkripsinya (persis seperti di jurnal):',
+    x + w / 2, y + 40, { font: FONT_VT(16), color: '#d8c8b8', align: 'center' });
   // huruf menyesuaikan lebar terukur (sandi = satu kata panjang tanpa spasi)
   const shown = C.value || L.encrypted || '';
   const csize = fitFont(shown, [24, 22, 20, 18, 17, 16, 15, 14], w - 70, FONT_VT);
   drawTextInput(x + 24, y + 50, w - 48, 34, C.value, true, { color: '#ffe9a8', size: csize });
   // dibatasi lebarnya: pesan panjang tidak boleh menabrak penghitung huruf di kanan
   if (C.msg) txt(C.msg.text, x + 26, y + 100, { font: FONT_VT(16), color: C.msg.c, maxWidth: w - 224 });
-  txt(C.value.length + ' / ' + (L.encrypted ? L.encrypted.length : 0) + ' huruf', x + w - 26, y + 100, { font: FONT_VT(14), color: '#8a84b8', align: 'right' });
-  button(x + 26, y + 138, 152, 28, 'ISI OTOMATIS', () => { C.value = L.encrypted || ''; C.msg = null; SFX.paper(); }, { size: 7 });
+  txt(C.value.length + ' / ' + ((L.masukAda ? L.masukAsli : L.encrypted) || '').length + ' huruf', x + w - 26, y + 100, { font: FONT_VT(14), color: '#8a84b8', align: 'right' });
+  button(x + 26, y + 138, 152, 28, 'ISI OTOMATIS', () => { C.value = L.masukAda ? '' : (L.encrypted || ''); C.msg = null; SFX.paper(); }, { size: 7 });
   button(x + 190, y + 138, 118, 28, 'HAPUS', () => { C.value = ''; SFX.uiBack(); }, { size: 7 });
   button(x + 320, y + 138, 174, 28, 'KIRIM (ENTER)', () => submitCourier(C), { size: 7 });
   txt('Esc: batal • TAB: lihat jurnal', x + w / 2, y + h - 10, { font: FONT_VT(13), color: '#5a5488', align: 'center' });
@@ -676,16 +704,22 @@ function drawMachineTouch(M) {
         { font: FONT_PS(8), color: '#ffe9a8', align: 'center' });
     button(x + w / 2 - 150, yStatus + Math.ceil(8 * 0.16) + 14, 300, 46,
       copiedRecently() ? '\u2713 TERSALIN' : 'SALIN TEKS', () => copyText(M.resultText), { size: 8 });
-    txt('Antar sandi ini ke kurir di dekat pintu', x + w / 2, y + h - 60,
+    txt(machineMode() === 'dec' ? 'Ketik hasil ini ke kurir di dekat pintu'
+                                : 'Antar sandi ini ke kurir di dekat pintu', x + w / 2, y + h - 60,
         { font: FONT_VT(17), color: '#a8c8d8', align: 'center' });
     button(x + w / 2 - 80, y + h - 46, 160, 34, 'TUTUP', () => { M.open = false; SFX.uiBack(); }, { size: 7 });
     return;
   }
 
   /* ---- input a & b ---- */
-  txt('Masukkan a dan b sesuai catatan fungsi:', x + 30, y + 48, { font: FONT_VT(17), color: '#a8c8d8' });
+  const modeT = machineMode();
+  txt(modeT === 'dec' ? 'MODE: DESKRIPSI (fungsi invers)' : 'MODE: ENKRIPSI',
+    x + w / 2, y + 40, { font: FONT_PS(8), color: modeT === 'dec' ? '#7ac8ff' : '#7ae68a', align: 'center' });
+  txt(L.komposisi ? 'Masukkan a (dari h) dan c (dari g):' : 'Masukkan a dan b sesuai catatan fungsi:',
+    x + 30, y + 60, { font: FONT_VT(17), color: '#a8c8d8' });
   const fw = 210;
-  [['a', M.fa, x + 108], ['b', M.fb, x + 368]].forEach(([k, v, fx]) => {
+  const kunciT = paramLabels();
+  [[kunciT[0], M.fa, x + 108], [kunciT[1], M.fb, x + 368]].forEach(([k, v, fx]) => {
     const focused = M.focus === k;
     txt(k + ' =', fx - 10, y + 80, { font: FONT_PS(9), color: '#ffe9a8', align: 'right', baseline: 'middle' });
     drawTextInput(fx, y + 64, fw, 34, v, focused, { color: '#7ae68a' });
@@ -719,11 +753,12 @@ function drawCourierTouch(C) {
   const shakeX = C.shakeT > 0 ? Math.sin(C.shakeT * 60) * 3 * C.shakeT : 0;
   panel(x + shakeX, y, w, h, { title: '\ud83d\udcee KURIR SURAT', accent: '#e8a44a', bg: '#20182c',
     close: () => { C.open = false; SFX.uiBack(); } });
-  txt('Ketik persis teks terenkripsi dari jurnal:', x + 30, y + 48, { font: FONT_VT(17), color: '#d8c8b8' });
+  txt(L.masukAda ? 'Ketik hasil deskripsi dari mesin:' : 'Ketik persis teks terenkripsi dari jurnal:',
+    x + 30, y + 48, { font: FONT_VT(17), color: '#d8c8b8' });
   const shown = C.value || L.encrypted || '';
   const csize = fitFont(shown, [24, 22, 20, 18, 17, 16, 15, 14], w - 90, FONT_VT);
   drawTextInput(x + 30, y + 56, w - 60, 38, C.value, true, { color: '#ffe9a8', size: csize });
-  txt(C.value.length + ' / ' + (L.encrypted ? L.encrypted.length : 0) + ' huruf', x + w - 34, y + 110,
+  txt(C.value.length + ' / ' + ((L.masukAda ? L.masukAsli : L.encrypted) || '').length + ' huruf', x + w - 34, y + 110,
       { font: FONT_VT(15), color: '#8a84b8', align: 'right' });
   if (C.msg) txt(C.msg.text, x + 30, y + 110, { font: FONT_VT(17), color: C.msg.c, maxWidth: w - 224 });
   else txt('besar / kecil huruf harus persis sama', x + 30, y + 110, { font: FONT_VT(15), color: '#5a5488' });

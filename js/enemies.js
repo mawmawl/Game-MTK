@@ -172,6 +172,20 @@ class Enemy {
 function onPlayerCaught(enemy, L) {
   L.catches++;
   L.immunity = 2.6;
+  /* revisi: nyawa 3. Habis -> misi gagal, ulang dari level sebelumnya. */
+  if (!L.gagal) {
+    L.lives = Math.max(0, (L.lives === undefined ? 3 : L.lives) - 1);
+    Particles.text(L.player.x + 8, L.player.y - 30,
+      'NYAWA ' + L.lives + '/3', L.lives <= 1 ? '#ff6a5a' : '#ffd75e');
+    if (L.lives <= 0) {
+      L.gagal = true;
+      const prev = Math.max(0, L.defIndex - 1);
+      const namaPrev = LEVELS[prev] ? LEVELS[prev].name : 'awal';
+      openDialog('MISI GAGAL', 'Tertangkap 3 kali — nyawa habis. Kamu dikembalikan ke level sebelumnya (' + namaPrev + ').',
+        () => { Fade.start(() => { Scenes.go('game', { level: prev, rebuild: true }); }); }, '#ff8a7a');
+      SFX.deny();
+    }
+  }
   L.flash = { t: 0.6, c: '255,60,60' };
   L.pulse = { t: 0.75, t0: 0.75, c: '255,70,60' };   // denyut tepi layar
   L.hitstop = 0.16;                        // dunia beku sesaat -> tangkapan terasa "kena"
