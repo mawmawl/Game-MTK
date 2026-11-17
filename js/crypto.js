@@ -13,7 +13,7 @@
    Fungsi per level (revisi: tiap level beda fungsi):
      1 Kamar   : f(x) = x + b            (geser)          invers: x - b
      2 Sekolah : f(x) = a x + b          (kali + geser)   invers: (x - b) / a
-     3 Lab     : f(x) = h(g(x))          (KOMPOSISI)      invers komposisi
+     4 Bunker  : (f o g)(x) = f(g(x))    (KOMPOSISI)      invers komposisi
                  g(x) = x + c,  h(y) = a y  =>  f(x) = a x + a c
    Di level 3 pemain menyusun komposisinya (masukkan a dan c), mesin yang
    menghitung, dan deskripsinya memakai invers dari fungsi gabungan itu.
@@ -95,7 +95,7 @@ const Crypto = {
   },
 
   /* KOMPOSISI (level 3): g(x) = x + c lalu h(y) = a y
-     f(x) = h(g(x)) = a x + a c  -> disusun jadi bentuk (a, b) supaya
+     (f o g)(x) = f(g(x)) = a x + a c  -> disusun jadi bentuk (a, b) supaya
      enkripsi & deskripsi memakai jalur yang sama seperti level lain. */
   compose(a, c) {
     return { a: a, b: a * c, c: c };
@@ -106,8 +106,16 @@ const Crypto = {
     if (b === 0) return 'f(x) = ' + a + 'x';
     return 'f(x) = ' + a + 'x ' + (b < 0 ? '-' : '+') + ' ' + Math.abs(b);
   },
+  /* Komposisi ditulis dengan notasi baku seperti di buku:
+     g(x) = x + c (dalam), f(x) = a x (luar), (f o g)(x) = f(g(x)) */
   fmtKomposisi(a, c) {
-    return ['g(x) = x + ' + c, 'h(x) = ' + a + 'x', 'f(x) = h(g(x))'];
+    return ['g(x) = x + ' + c, 'f(x) = ' + a + 'x',
+            '(f \u2218 g)(x) = f(g(x)) = ' + a + 'x + ' + (a * c)];
+  },
+  /* fungsi akhir level: linear biasa, atau hasil komposisi (f o g) */
+  fmtFnLengkap(a, b, komposisi) {
+    const badan = this.fmtFn(a, b).replace('f(x) = ', '');
+    return komposisi ? '(f \u2218 g)(x) = ' + badan : 'f(x) = ' + badan;
   },
 
   /* Kunci dalam bahasa verbal — handout proyek: "unsur simbolik pada fungsi
@@ -140,7 +148,7 @@ const Crypto = {
 
   /* ---- Lembar kiriman Mode Proyek Kelompok (handout hal. 10 langkah 4) ----
      Satu baris supaya mudah disalin & ditempel antar kelompok.
-     Format: SANDI|a|c  dengan f(x) = h(g(x)), g(x)=x+c, h(y)=a*y  =>  b = a*c */
+     Format: SANDI|a|c  dengan (f o g)(x) = f(g(x)), g(x)=x+c, f(x)=a*x  =>  b = a*c */
   buatLembar(sandi, a, c) { return sandi + '|' + a + '|' + c; },
   bacaLembar(teks) {
     const bagian = String(teks || '').trim().split('|').map(t => t.trim());

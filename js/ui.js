@@ -358,7 +358,7 @@ function drawProyek(P) {
     x + 24, y + PY.label1, { font: FONT_PS(6), color: '#7ac8ff' });
   drawTextInput(x + 24, y + PY.kolom1, lebar, PY.kolomH, sisi[kn], fokusTeks, { color: '#f0ecff' });
 
-  txt(P.tab === 0 ? '2. KUNCI GANDA: g(x) = x + c  lalu  h(x) = a \u00b7 x'
+  txt(P.tab === 0 ? '2. KUNCI GANDA: g(x) = x + c  lalu  f(x) = a \u00b7 x'
                   : '4. KUNCI DARI LEMBAR: a dan c',
     x + 24, y + PY.label2, { font: FONT_PS(6), color: '#7ac8ff' });
   txt('a =', x + 62, y + PY.kunci + 12, { font: FONT_PS(8), color: '#ffe9a8', align: 'right', baseline: 'middle' });
@@ -367,7 +367,7 @@ function drawProyek(P) {
   drawTextInput(x + 234, y + PY.kunci, 96, PY.kunciH, sisi.c, P.fokus === 'c', { color: '#7ae68a' });
 
   if (P.tab === 0 && isFinite(a) && isFinite(c) && a !== 0) {
-    txt(Crypto.fmtFn(a, a * c) + '   =   ' + Crypto.fmtVerbal(a, a * c, c, true), x + 24, y + PY.rumus,
+    txt(Crypto.fmtFnLengkap(a, a * c, true) + '   =   ' + Crypto.fmtVerbal(a, a * c, c, true), x + 24, y + PY.rumus,
       { font: FONT_VT(14), color: '#c8c2f0' });
   } else if (P.tab === 1 && isFinite(ta) && isFinite(tc) && ta !== 0) {
     txt('deskripsi: f\u207b\u00b9(x) = (x \u2212 ' + (ta * tc) + ') \u00f7 ' + ta, x + 24, y + PY.rumus,
@@ -458,7 +458,7 @@ function journalTabs(jx, y, w, h) {
   const bh = TOUCH ? 30 : 24, by = y + h - bh - 16;
   button(jx + 14, by, 104, bh, '\u25c0 MISI', () => { if (L.journalPage !== 0) { L.journalPage = 0; SFX.uiBack(); } }, { size: 6 });
   button(jx + w - 118, by, 104, bh, 'ACUAN \u25b6', () => { if (L.journalPage !== 1) { L.journalPage = 1; SFX.paper(); } }, { size: 6 });
-  txt('halaman ' + ((L.journalPage | 0) + 1) + ' / 2', jx + w / 2, by - 12,
+  txt('halaman ' + ((L.journalPage | 0) + 1) + ' / 2', jx + w / 2, y + h - 8,
     { font: FONT_VT(12), color: '#8a84b8', align: 'center' });
 }
 function drawJournal(L) {
@@ -485,7 +485,7 @@ function drawJournal(L) {
       : { title: 'PESAN RAHASIA', hh: 70, fsz: 19, col: '#f0ecff', body: '', ok: false },
     { title: 'CATATAN FUNGSI', hh: L.komposisi ? 96 : 70, fsz: L.komposisi ? 15 : 19, col: '#f0ecff',
       body: L.found.note
-        ? Crypto.fmtFn(L.a, L.b) + '  =  ' + Crypto.fmtVerbal(L.a, L.b, L.c, L.komposisi)
+        ? Crypto.fmtFnLengkap(L.a, L.b, L.komposisi) + '  =  ' + Crypto.fmtVerbal(L.a, L.b, L.c, L.komposisi)
         : 'Belum ditemukan...',
       rows: (L.found.note && L.komposisi) ? Crypto.fmtKomposisi(L.a, L.c) : null,
       ok: L.found.note, hint: 'Cari kertas catatan tersembunyi' },
@@ -541,7 +541,7 @@ function drawMachineUI(M) {
     const mode = machineMode();
     txt(modeLabel(), x + w / 2, cy - 4,
       { font: FONT_PS(7), color: mode === 'dec' ? '#7ac8ff' : '#7ae68a', align: 'center' });
-    txt(L.komposisi ? 'Masukkan a (dari h) dan c (dari g):' : 'Masukkan parameter sesuai catatan fungsi:',
+    txt(L.komposisi ? 'Masukkan a (dari f) dan c (dari g):' : 'Masukkan parameter sesuai catatan fungsi:',
       x + w / 2, cy + 12, { font: FONT_VT(16), color: '#a8c8d8', align: 'center' });
     cy += 26;
     const kunci = paramLabels();
@@ -943,7 +943,7 @@ function drawMachineTouch(M) {
   const modeT = machineMode();
   txt(modeLabel(), x + w / 2, y + 40,
     { font: FONT_PS(8), color: modeT === 'dec' ? '#7ac8ff' : '#7ae68a', align: 'center' });
-  txt(L.komposisi ? 'Masukkan a (dari h) dan c (dari g):' : 'Masukkan a dan b sesuai catatan fungsi:',
+  txt(L.komposisi ? 'Masukkan a (dari f) dan c (dari g):' : 'Masukkan a dan b sesuai catatan fungsi:',
     x + 30, y + 60, { font: FONT_VT(17), color: '#a8c8d8' });
   const fw = 210;
   const kunciT = paramLabels();

@@ -250,7 +250,7 @@ const LEVELS = [
    LEVEL 4 — BUNKER BAWAH TANAH (KOMPOSISI)
    Peta diturunkan dari Lab dengan CERMIN horizontal: cermin adalah
    isometri, jadi keterjangkauan & jalur musuh dijamin tetap sah.
-   Fungsi: f(x) = h(g(x)) dengan g(x) = x + c dan h(y) = a y.
+   Fungsi: (f o g)(x) = f(g(x)) dengan g(x) = x + c dan f(x) = a x.
    ============================================================ */
 (function () {
   const lab = LEVELS[2];

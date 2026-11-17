@@ -206,8 +206,8 @@ function interact(o) {
       openDialog('Catatan Fungsi',
         'Tertulis: ' + isiCatatan + (bukaSandi
           ? '. Pilih mode ' + (L.def.kerja === 'inv' ? 'INVERS' : 'DESKRIPSI') + ' di mesin, lalu masukkan ' +
-            (L.komposisi ? 'a (dari h) dan c (dari g)' : 'a dan b') + '.'
-          : '. Masukkan ' + (L.komposisi ? 'a (dari h) dan c (dari g)' : 'nilai a dan b') + ' ke mesin enkripsi!'),
+            (L.komposisi ? 'a (dari f) dan c (dari g)' : 'a dan b') + '.'
+          : '. Masukkan ' + (L.komposisi ? 'a (dari f) dan c (dari g)' : 'nilai a dan b') + ' ke mesin enkripsi!'),
         null, '#7ae68a');
     } else {
       SFX.paper();
