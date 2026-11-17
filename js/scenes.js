@@ -141,14 +141,35 @@ function interact(o) {
       L.machine.msg = null; SFX.uiSelect();
     }
   } else if (o.type === 'courier') {
-    if (!L.encrypted) {
-      openDialog('Kurir Surat', 'Halo, agen! Pesannya belum terenkripsi... Aku tidak mau membawa pesan terbuka, bahaya disadap! Gunakan mesin enkripsi dulu (ikuti panah emas).');
-    } else if (L.delivered) {
-      openDialog('Kurir Surat', 'Pesan aman di tanganku. Kerja bagus, agen!');
+    /* Kurir mengikuti peran level + warna tema level itu:
+       - enc      : butuh teks HASIL ENKRIPSI
+       - dec/inv  : butuh teks ASLI hasil buka sandi
+       - komposisi: tahap 1 sandi, tahap 2 hasil buka balasan */
+    const aksen = L.def.accent || '#e8a44a';
+    const peranK = L.def.kerja;
+    const hanyaBukaK = (peranK === 'dec' || peranK === 'inv');
+    const tahapBuka = (peranK === 'komposisi' && L.masukAda);
+    const siapKirim = hanyaBukaK ? !!L.hasilDeskripsi
+                    : tahapBuka ? !!L.hasilDeskripsi : !!L.encrypted;
+    if (L.resultsGiven) {
+      openDialog('Kurir Surat', 'Semua pesan sudah aman di tanganku. Kerja bagus, agen!', null, aksen);
+    } else if (!siapKirim) {
+      openDialog('Kurir Surat', hanyaBukaK
+        ? 'Sobekan sandinya belum kau buka. Pakai mesin mode ' + (peranK === 'inv' ? 'INVERS' : 'DESKRIPSI') +
+          ' dulu \u2014 aku hanya boleh membawa teks yang sudah jelas.'
+        : tahapBuka
+        ? 'Balasan markas belum kau buka. Pakai mesin mode DESKRIPSI dulu, baru aku antar.'
+        : 'Halo, agen! Pesannya belum terenkripsi... Aku tidak mau membawa pesan terbuka, bahaya disadap! Gunakan mesin enkripsi dulu (ikuti panah emas).',
+        null, aksen);
     } else {
-      openDialog('Kurir Surat', 'Pesan sudah siap? Bagus! Ketik persis teks terenkripsi dari jurnalmu [TAB], jangan sampai salah satu huruf pun.', () => {
-        L.courierUI.open = true; L.courierUI.value = ''; L.courierUI.msg = null;
-      }, '#e8a44a');
+      openDialog('Kurir Surat', hanyaBukaK
+        ? 'Sandi sudah terbuka? Bagus! Ketik teks ASLI hasil bukanya, jangan sampai salah satu huruf pun.'
+        : tahapBuka
+        ? 'Balasan markas sudah kau buka? Ketik teks aslinya, jangan sampai salah satu huruf pun.'
+        : 'Pesan sudah siap? Bagus! Ketik persis teks terenkripsi dari jurnalmu [TAB], jangan sampai salah satu huruf pun.',
+        () => {
+          L.courierUI.open = true; L.courierUI.value = ''; L.courierUI.msg = null;
+        }, aksen);
     }
   } else if (o.search) {
     if (o.searched) { openDialog(o.label, 'Sudah kau periksa. Tidak ada lagi di sini.'); return; }

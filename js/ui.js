@@ -466,7 +466,7 @@ function drawCourierUI(C) {
   if (TOUCH) { drawCourierTouch(C); return; }
   const w = 520, h = 198, x = VW / 2 - w / 2, y = VH - h - 14;
   const shakeX = C.shakeT > 0 ? Math.sin(C.shakeT * 60) * 3 * C.shakeT : 0;
-  panel(x + shakeX, y, w, h, { title: '📮 KURIR SURAT', accent: '#e8a44a', bg: '#20182c', close: () => { C.open = false; SFX.uiBack(); } });
+  panel(x + shakeX, y, w, h, { title: '📮 KURIR SURAT', accent: (L.def.accent || '#e8a44a'), bg: '#20182c', close: () => { C.open = false; SFX.uiBack(); } });
   txt(L.masukAda ? 'Serahkan hasil deskripsi balasan (persis seperti di mesin):'
                  : 'Serahkan teks terenkripsinya (persis seperti di jurnal):',
     x + w / 2, y + 40, { font: FONT_VT(16), color: '#d8c8b8', align: 'center' });
@@ -770,7 +770,7 @@ function drawMachineTouch(M) {
 function drawCourierTouch(C) {
   const w = 620, h = 336, x = VW / 2 - w / 2, y = 12;
   const shakeX = C.shakeT > 0 ? Math.sin(C.shakeT * 60) * 3 * C.shakeT : 0;
-  panel(x + shakeX, y, w, h, { title: '\ud83d\udcee KURIR SURAT', accent: '#e8a44a', bg: '#20182c',
+  panel(x + shakeX, y, w, h, { title: '\ud83d\udcee KURIR SURAT', accent: (L.def.accent || '#e8a44a'), bg: '#20182c',
     close: () => { C.open = false; SFX.uiBack(); } });
   txt(L.masukAda ? 'Ketik hasil deskripsi dari mesin:' : 'Ketik persis teks terenkripsi dari jurnal:',
     x + 30, y + 48, { font: FONT_VT(17), color: '#d8c8b8' });

@@ -13,7 +13,7 @@ const LEVELS = [
 
   /* ============ LEVEL 1 — KAMAR ============ */
   {
-    name: 'Kamar', subtitle: 'Malam Pertama', themeMusic: 'bedroom', target: 150, kerja: 'enc',
+    name: 'Kamar', subtitle: 'Malam Pertama', themeMusic: 'bedroom', target: 150, kerja: 'enc', accent: '#b0785a',
     w: 24, h: 14,
     map: [
       '########################',
@@ -83,7 +83,7 @@ const LEVELS = [
 
   /* ============ LEVEL 2 — SEKOLAH ============ */
   {
-    name: 'Sekolah', subtitle: 'Koridor yang Diawasi', themeMusic: 'school', target: 210, kerja: 'dec',
+    name: 'Sekolah', subtitle: 'Koridor yang Diawasi', themeMusic: 'school', target: 210, kerja: 'dec', accent: '#7fa8c9',
     w: 30, h: 16,
     map: [
       '##############################',
@@ -165,7 +165,7 @@ const LEVELS = [
 
   /* ============ LEVEL 3 — LAB RUSAK ============ */
   {
-    name: 'Lab Rusak', subtitle: 'Kunci Terbalik', themeMusic: 'lab', target: 240, kerja: 'inv',
+    name: 'Lab Rusak', subtitle: 'Kunci Terbalik', themeMusic: 'lab', target: 240, kerja: 'inv', accent: '#3ee6d8',
     w: 30, h: 16,
     map: [
       '##############################',
@@ -259,7 +259,7 @@ const LEVELS = [
   // warisi SELURUH def lab (termasuk courier, target, themeMusic) lalu timpa
   // bagian yang dicerminkan — cara ini menghindari field yang terlupa
   LEVELS.push(Object.assign({}, lab, {
-    name: 'Bunker', subtitle: 'Rahasia Terakhir', target: 330, kerja: 'komposisi',
+    name: 'Bunker', subtitle: 'Rahasia Terakhir', target: 330, kerja: 'komposisi', accent: '#b06ad8',
     map: lab.map.map(r => r.split('').reverse().join('')),
     courier: { x: cerminX(lab.courier.x), y: lab.courier.y },
     theme: Object.assign({}, lab.theme, { dust: '200,150,240', glowWindow: '225,180,255' }),
