@@ -71,7 +71,9 @@ class Enemy {
         ty = player.y + player.h / 2;
       } else {
         this.loseT += dt;
-        if (this.loseT > 2.4) { this.state = 'search'; this.loseT = 0; this.susT = 0; }
+        /* revisi: 3 detik pemain tidak terlihat -> penjaga kembali patroli
+           seperti biasa (tidak lagi mampir ke keadaan 'search'). */
+        if (this.loseT > 3) { this.state = 'patrol'; this.loseT = 0; this.susT = 0; this.lastSeen = null; }
         tx = this.lastSeen ? this.lastSeen.x : this.x;
         ty = this.lastSeen ? this.lastSeen.y : this.y;
       }
