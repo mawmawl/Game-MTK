@@ -208,7 +208,7 @@ function drawHUD(L) {
   R(VW - 150, 8, 142, 2, 'rgba(232,192,74,0.6)');
   CIR(VW - 134, 21, 6, '#e8c04a'); CIR(VW - 134, 21, 5, '#181430');
   R(VW - 135, 16, 1, 5, '#e8c04a'); R(VW - 134, 20, 3, 1, '#e8c04a');
-  // nyawa (maks 3): habis -> ulang dari level sebelumnya
+  // nyawa (maks 3): habis -> level yang sama diulang otomatis
   const nx = VW - 150, ny = 54, nmax = L.livesMax || 3, nkini = (L.lives === undefined ? nmax : L.lives);
   R(nx, ny, 142, 20, 'rgba(10,8,24,0.74)');
   O(nx, ny, 142, 20, 'rgba(140,120,230,0.4)');
@@ -219,16 +219,10 @@ function drawHUD(L) {
     CIR(hxc, ny + 10, 3, hidup ? '#ffd0c0' : 'rgba(255,255,255,0.05)');
   }
   txt(fmtTime(L.timer), VW - 122, 25, { font: FONT_PS(8), color: '#fff' });
-  txt('MATA-MATA', VW - 142, 41, { font: FONT_VT(13), color: '#8a84b8' });
-  // hanya 3 titik tersedia; lebih dari itu ditampilkan sebagai "+N"
-  const shownCatches = Math.min(L.catches, 3);
-  for (let i = 0; i < 3; i++) {
-    const filled = i < shownCatches;
-    CIR(VW - 68 + i * 14, 38, 5, filled ? '#ff5a5a' : 'rgba(255,255,255,0.12)');
-    if (filled) { R(VW - 69 + i * 14, 37, 3, 1, '#7a1a1a'); R(VW - 68 + i * 14, 36, 1, 3, '#7a1a1a'); }
-  }
-  if (L.catches > 3)
-    txt('+' + (L.catches - 3), VW - 14, 43, { font: FONT_VT(13), color: '#ff8a7a', align: 'right' });
+  /* Dulu di baris ini ada deret "MATA-MATA" (3 titik yang terisi tiap kali
+     tertangkap). Itu informasi yang sama dengan panel NYAWA, jadi dihapus —
+     sekarang hanya ada SATU indikator nyawa. */
+  txt('SISA WAKTU', VW - 142, 41, { font: FONT_VT(13), color: '#8a84b8' });
 }
 
 /* ---------- Petunjuk interaksi & panah objektif ---------- */
