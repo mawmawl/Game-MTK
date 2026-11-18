@@ -502,9 +502,17 @@ function drawJournal(L) {
           fsz: efsz, col: '#7ae68a', body: sandiAktif || '???', ok: !!sandiAktif,
           hint: 'Gunakan mesin enkripsi' }
   ];
-  sections[0].body = L.found.message ? '\u201c' + L.message + '\u201d' : 'Belum ditemukan...';
-  sections[0].ok = L.found.message;
-  sections[0].hint = 'Periksa objek di ruangan [E]';
+  /* Bagian pertama jurnal berbeda per peran level:
+     - enkripsi/komposisi : PESAN RAHASIA  -> isinya pesan keluar (L.message)
+     - deskripsi/invers   : SOBEKAN SANDI  -> isinya sandi hasil temuan
+     Dulu baris ini menimpa bagian pertama dengan L.message untuk SEMUA level,
+     sehingga di level deskripsi/invers isi sobekan sandi tampil sebagai pesan
+     keluar yang tidak berhubungan (dan tidak cocok dengan sandi yang dibuka). */
+  if (L.def.kerja !== 'dec' && L.def.kerja !== 'inv') {
+    sections[0].body = L.found.message ? '\u201c' + L.message + '\u201d' : 'Belum ditemukan...';
+    sections[0].ok = L.found.message;
+    sections[0].hint = 'Periksa objek di ruangan [E]';
+  }
 
   let sy = y + 40;
   sections.forEach((s, i) => {
