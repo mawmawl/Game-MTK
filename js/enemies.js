@@ -221,10 +221,13 @@ function onPlayerCaught(enemy, L) {
       'NYAWA ' + L.lives + '/3', L.lives <= 1 ? '#ff6a5a' : '#ffd75e');
     if (L.lives <= 0) {
       L.gagal = true;
-      const prev = Math.max(0, L.defIndex - 1);
-      const namaPrev = LEVELS[prev] ? LEVELS[prev].name : 'awal';
-      openDialog('MISI GAGAL', 'Tertangkap 3 kali — nyawa habis. Kamu dikembalikan ke level sebelumnya (' + namaPrev + ').',
-        () => { Fade.start(() => { Scenes.go('game', { level: prev, rebuild: true }); }); }, '#ff8a7a');
+      /* revisi: nyawa habis -> OTOMATIS mengulang level yang sama (bukan
+         kembali ke level sebelumnya). Nyawa kembali 3 karena level dibangun
+         ulang. Dialog menutup sendiri 2,4 detik setelah teks selesai. */
+      openDialog('MISI GAGAL', 'Tertangkap 3 kali — nyawa habis. ' + L.def.name +
+        ' diulang otomatis dari awal, nyawa kembali 3.',
+        () => { Fade.start(() => { Scenes.go('game', { level: L.defIndex, rebuild: true }); }); },
+        '#ff8a7a', 2.4);
       SFX.deny();
     }
   }

@@ -83,9 +83,20 @@ function buildLevel(idx) {
 /* ============================================================
    DIALOG
    ============================================================ */
-function openDialog(name, text, onDone, accent) {
-  L.dialog = { name, text, shown: '', chars: 0, done: false, onDone: onDone || null, accent, age: 0 };
+function openDialog(name, text, onDone, accent, auto) {
+  L.dialog = { name, text, shown: '', chars: 0, done: false, onDone: onDone || null,
+               accent, age: 0, auto: auto || 0 };
   SFX.paper();
+}
+/* menutup dialog + menjalankan lanjutannya; dipakai tombol maupun penutupan
+   otomatis (mis. MISI GAGAL yang langsung mengulang level) */
+function tutupDialog(d) {
+  SFX.uiSelect();
+  L.dialog = null;
+  // telan input frame ini supaya ketukan yang menutup dialog tidak
+  // ikut menekan tombol panel yang baru terbuka
+  Input.mouse.clicked = false; Input.pressed.clear(); Input.charQueue.length = 0;
+  if (d && d.onDone) d.onDone();
 }
 function updateDialog(dt) {
   const d = L.dialog;
@@ -95,15 +106,11 @@ function updateDialog(dt) {
   d.done = d.chars >= d.text.length;
   if (Input.press('e', 'E', 'Enter', ' ') || Input.mouse.clicked) {
     if (!d.done) { d.chars = d.text.length; d.shown = d.text; d.done = true; }
-    else {
-      SFX.uiSelect();
-      L.dialog = null;
-      // telan input frame ini supaya ketukan yang menutup dialog tidak
-      // ikut menekan tombol panel yang baru terbuka
-      Input.mouse.clicked = false; Input.pressed.clear(); Input.charQueue.length = 0;
-      if (d.onDone) d.onDone();
-    }
+    else tutupDialog(d);
+    return;
   }
+  /* tutup otomatis, hanya untuk dialog yang diberi batas waktu */
+  if (d.auto > 0 && d.done && d.age >= d.auto) tutupDialog(d);
 }
 
 /* ============================================================
