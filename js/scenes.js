@@ -681,7 +681,12 @@ function drawLighting(Ld) {
   ctx.globalAlpha = 1;
 }
 
-function renderGame() {
+function renderGame(o) {
+  /* o.latar = true dipakai layar hasil: hanya menggambar dunia beku sebagai
+     latar, TANPA HUD (objektif, nyawa, timer, kontrol sentuh, gelembung
+     "periksa"). Dulu HUD ikut tergambar sehingga panel NYAWA & prompt E
+     menembus modal "LEVEL SELESAI!". */
+  const latar = !!(o && o.latar);
   if (!L) { // frame pertama sebelum buildLevel: gambar hitam saja
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, VW, VH);
@@ -761,10 +766,9 @@ function renderGame() {
     ctx.fillRect(0, 0, VW, VH);
     UI.begin();                       // hit-test dibersihkan: panel menang
   } else {
-    drawHUD(L);
-    if (TOUCH) drawTouchControls(L);
+    if (!latar) { drawHUD(L); if (TOUCH) drawTouchControls(L); }
   }
-  if (!anyModal() && !L.courierLeaving) {
+  if (!latar && !anyModal() && !L.courierLeaving) {   // petunjuk/popup/panah tidak digambar di layar hasil
     // di mode sentuh, petunjuk interaksi digantikan gelembung di atas benda
     if (L.near && !TOUCH) {
       const label = L.near.type === 'machine' ? 'Gunakan Mesin Enkripsi'
@@ -1378,7 +1382,7 @@ const Scenes = {
         UI.begin();
         const opts = MENU_OPTS;
         opts.forEach((o, i) => {
-          luxButton(VW / 2 - 92, 196 + i * 42, 184, 32, o, () => {
+          luxButton(VW / 2 - 92, 184 + i * 37, 184, 32, o, () => {
             if (i === 0) startLevel(Math.min(G.save.unlocked, LEVELS.length) - 1);
             else if (i === 1) Scenes.go('select', { idx: Math.min(G.save.unlocked, LEVELS.length) - 1 });
             else if (i === 3) Scenes.go('proyek', {});
@@ -1645,7 +1649,7 @@ const Scenes = {
       },
       render() {
         const d = Scenes.data;
-        renderGame(); // latar level beku
+        renderGame({ latar: true }); // latar level beku, tanpa HUD
         ctx.fillStyle = 'rgba(6,5,14,0.78)';
         ctx.fillRect(0, 0, VW, VH);
         // kilat emas saat panel muncul
